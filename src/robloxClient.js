@@ -14,6 +14,22 @@ export class RobloxApiError extends Error {
   }
 }
 
+/**
+ * Roblox answered with a captcha / 2-step challenge. Nothing headless can solve
+ * it, so callers should stop hammering that endpoint and tell the human.
+ */
+export class ChallengeRequiredError extends Error {
+  constructor(url, challenge) {
+    super(
+      `Roblox demanded a ${challenge.type || 'captcha'} challenge for ${url}. ` +
+        'Open roblox.com in a browser with this account, do whatever it asks, then restart.',
+    );
+    this.name = 'ChallengeRequiredError';
+    this.url = url;
+    this.challenge = challenge;
+  }
+}
+
 export class RobloxClient {
   /**
    * @param {object} opts
@@ -115,6 +131,14 @@ export class RobloxClient {
         this.log.warn(`${res.status} from ${url}; retry in ${waitMs}ms (attempt ${attempt}/${this.maxRetries})`);
         await sleep(waitMs);
         continue;
+      }
+
+      if (res.status === 403) {
+        const challengeType = res.headers.get('rblx-challenge-type');
+        const challengeId = res.headers.get('rblx-challenge-id');
+        if (challengeType || challengeId || /challenge/i.test(body)) {
+          throw new ChallengeRequiredError(url, { type: challengeType, id: challengeId });
+        }
       }
 
       if (res.status === 401 || res.status === 403) {

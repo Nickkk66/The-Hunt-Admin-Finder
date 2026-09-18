@@ -54,6 +54,16 @@ export function matchesTarget(presence, target = {}, { notifyOnUnknownGame = fal
   return { match: false, confidence: null, reason: 'different experience' };
 }
 
+/**
+ * True when someone is in an experience but Roblox will not tell us which one.
+ * Usually means their "who can join me" privacy is set to Followers, Friends or
+ * No one - the first of those is the case follow-probing can open up.
+ */
+export function isLocationHidden(presence) {
+  if (!presence || presence.userPresenceType !== PresenceType.IN_GAME) return false;
+  return !presence.universeId && !presence.placeId && !presence.rootPlaceId;
+}
+
 /** Dedupe key: one alert per user per server, unless the cooldown lapses. */
 export function hitKey(presence) {
   return `${presence.userId}:${presence.gameId ?? presence.placeId ?? 'unknown'}`;

@@ -58,6 +58,18 @@ export function buildHitEmbed(hit, { color = 0xc0c0c0, itemName = 'the item' } =
     { name: 'Status', value: hit.statusText, inline: true },
   ];
 
+  if (hit.confidence === 'probed') {
+    fields.push({
+      name: 'How we found them',
+      value:
+        'Their game was hidden, so the watcher followed them to see it. ' +
+        'Stay followed until you have joined - their joins are follower-only.',
+      inline: false,
+    });
+  } else if (hit.following) {
+    fields.push({ name: 'Note', value: 'You are currently following them (probe follow).', inline: false });
+  }
+
   if (hit.placeId) {
     fields.push({
       name: 'Experience',

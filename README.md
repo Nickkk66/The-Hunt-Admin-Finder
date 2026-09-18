@@ -6,8 +6,8 @@ the in-game item.
 
 Two watchers ship in the config:
 
-| Watcher        | Group                                          | Rank          | Item         |
-| -------------- | ---------------------------------------------- | ------------- | ------------ |
+| Watcher        | Group                                             | Rank          | Item         |
+| -------------- | ------------------------------------------------- | ------------- | ------------ |
 | `silver-wings` | [1200769](https://www.roblox.com/share/g/1200769) | `Team Member` | Silver Wings |
 | `golden-wings` | [4199740](https://www.roblox.com/share/g/4199740) | `Video Star`  | Golden Wings |
 
@@ -18,25 +18,21 @@ Both run in one process off the same config file. Adding a third is a new entry 
 
 This only works as well as Roblox lets it, and the gaps are real:
 
-1. **You need a logged-in cookie.** Group member pages and the presence API both
-   reject anonymous requests now. That means putting your `.ROBLOSECURITY` in
-   `.env`. Anyone who gets that string is logged into your account. Do not commit it,
-   do not paste it in Discord, and use an alt if you have one.
+1. **You need a logged-in cookie.** Group member pages, presence and follows all
+   reject anonymous requests. That means putting your `.ROBLOSECURITY` in `.env`.
+   Anyone who gets that string is logged into your account. Do not commit it, do
+   not paste it in Discord, and use an alt if you have one.
 2. **Presence hides the game for a lot of people.** `placeId` / `gameId` come back
-   `null` unless that user's privacy settings let you see what they're playing.
-   You'll still see "in a game", just not *which* game. Roblox staff and big
-   creators very often have this locked down, so expect a chunk of the 2.7k to be
-   permanently invisible. Set `notifyOnUnknownGame: true` if you'd rather get a
-   noisy "someone is in *something*" ping than miss them.
-3. **No server id means no one-click join.** The join link in the webhook needs
-   `gameId` (the server job id). Without it you get a link to the experience and
-   have to find them yourself.
-4. **Rate limits are the real ceiling.** ~2.7k members is ~54 presence calls per
-   sweep. The client spaces requests out and backs off on 429s, but if you drop
-   `pollIntervalSeconds` to 10 you will get throttled and see *less*, not more.
+   `null` unless that user's privacy lets you see what they're playing. Follow
+   probing (below) opens up the subset who set joins to **Followers**. Anyone on
+   **Friends** or **No one** stays invisible no matter what you do.
+3. **Rate limits are the real ceiling.** ~2.7k members is ~54 presence calls per
+   sweep. The client spaces requests and backs off on 429s, but dropping
+   `pollIntervalSeconds` to 10 gets you throttled and shows you *less*, not more.
    90 seconds is a sane floor for a rank this big.
-5. **This is automated scraping of Roblox.** Their ToS doesn't love it. Worst
-   realistic case is rate limiting or a flagged account. Your call.
+4. **This is automated scraping, plus automated follows, on your own account.**
+   Roblox's ToS doesn't love it. Worst realistic case is rate limiting, a captcha
+   wall, or a flagged account. Your call.
 
 ## Setup
 
@@ -66,8 +62,8 @@ It prints the `universeId` and `rootPlaceId`; paste them into `target.universeId
 and `target.placeIds` in `watchers.json`. Do it for both watchers (they point at the
 same experience, so the same ids go in both).
 
-Same command checks a group and lists its ranks, so you can confirm the exact rank
-spelling and member count:
+The same command checks a group and lists its ranks, so you can confirm the exact
+rank spelling and member count:
 
 ```bash
 npm run resolve "https://www.roblox.com/share/g/1200769"
@@ -81,6 +77,7 @@ npm start                 # both watchers, forever
 npm run once              # one sweep, then exit (good for a first smoke test)
 npm start -- --only silver-wings
 npm start -- --refresh    # force a re-scrape of the member list
+npm start -- --unfollow-all   # undo every follow the probe made, then exit
 LOG_LEVEL=debug npm start
 ```
 
@@ -90,6 +87,52 @@ First start scrapes the whole rank (27 pages for 2.7k people) and caches it in
 
 Once notified about a user in a given server, it won't ping again for
 `renotifyMinutes` (default 30). If they change servers, that's a new ping.
+
+## Follow probing (the people hiding their game)
+
+Roblox's "who can join me" setting has a **Followers** option, and presence hides
+the game from anyone who isn't allowed to join. So for that group, following them
+makes their server visible. That's what probing does.
+
+Per sweep, for users who are in *something* we can't see:
+
+1. Check which of them you already follow (those are left alone entirely).
+2. Follow up to `maxPerCycle` of the rest, slowly.
+3. Wait `settleMs`, re-check presence.
+4. In The Hunt → notify. Different game → no ping. Still hidden → unfollow now and
+   don't touch them again for `opaqueBackoffHours`.
+
+### Two things about this that you asked for and shouldn't have
+
+**Unfollowing right after the check would break the thing you're trying to do.**
+Their joins are follower-only. Unfollow and you're not a follower, so you can't
+join the server you just found. The tool keeps the follow while they're in the
+target game plus `targetGraceMinutes` (default 20), and only then drops it. If you
+really want the follow-check-unfollow behaviour, set `targetGraceMinutes: 0` and
+`keepFollowMinutes: 0` and accept that the alert is just trivia.
+
+**Follow/unfollow churn is the fastest way to get your account captcha-walled.**
+Probe every hidden user every 90 seconds and you're doing thousands of writes an
+hour, which looks exactly like a follow bot. So:
+
+- a user who *reveals* on follow stays followed for `keepFollowMinutes` (default
+  60). You then watch them through the normal cheap presence sweep instead of
+  re-following them every cycle.
+- a user who stays hidden after a follow is written off for `opaqueBackoffHours`.
+- hard caps: `maxPerCycle` per sweep, `maxActiveFollows` outstanding overall,
+  `minIntervalMs` between follow calls.
+- a captcha or 429 on the follow endpoint pauses all probing for
+  `pauseOnErrorMinutes`, it does not retry into the wall.
+- pre-existing follows are recorded and never unfollowed. The tool only undoes its
+  own follows.
+- `probe.dryRun: true` logs who it would follow and follows nobody. **Run this
+  first.**
+
+On ctrl-c it unfollows what it added, except people still in the target game.
+`--unfollow-all` forces a full cleanup.
+
+Probing is `enabled: true` for both watchers in the example config. Set it to
+`false` if you'd rather not touch the follow API at all.
 
 ## Config reference
 
@@ -109,18 +152,36 @@ Once notified about a user in a given server, it won't ping again for
 | `memberCacheHours`    | How long before the member list is re-scraped.                                 |
 | `presenceBatchSize`   | Users per presence call, max 100. 50 is the safe default.                      |
 | `renotifyMinutes`     | Cooldown before the same user/server can ping again.                           |
-| `notifyOnUnknownGame` | Ping when someone is in a game but the game is hidden. Noisy. Default `false`. |
+| `notifyOnUnknownGame` | Ping on "in a game, no idea which". Noisy, and skips probing. Default `false`. |
 | `enabled`             | Set `false` to park a watcher without deleting it.                             |
+
+Probe settings (`probe`):
+
+| Key                   | Default | What it does                                                    |
+| --------------------- | ------- | --------------------------------------------------------------- |
+| `enabled`             | `false` | Turn follow probing on. The example config enables it per watcher. |
+| `dryRun`              | `false` | Log intended follows, perform none.                               |
+| `maxPerCycle`         | `10`    | Most users followed in one sweep. Config rejects >25.             |
+| `maxActiveFollows`    | `60`    | Ceiling on outstanding probe follows.                             |
+| `minIntervalMs`       | `1500`  | Gap between follow calls.                                         |
+| `settleMs`            | `4000`  | Wait before re-checking presence (their cache needs a moment).    |
+| `recheckAttempts`     | `2`     | Presence re-checks before writing someone off as hidden.          |
+| `keepFollowMinutes`   | `60`    | How long a revealed user stays followed.                          |
+| `targetGraceMinutes`  | `20`    | Extra time to keep the follow after seeing them in the target.    |
+| `opaqueBackoffHours`  | `12`    | Cooldown before re-probing someone following didn't reveal.       |
+| `pauseOnErrorMinutes` | `30`    | Probe pause after a captcha or 429.                               |
+| `unfollowOnExit`      | `true`  | Clean up probe follows on ctrl-c.                                 |
 
 ## Layout
 
 ```
-src/robloxClient.js  auth, CSRF, 429/5xx backoff
+src/robloxClient.js  auth, CSRF, captcha detection, 429/5xx backoff
 src/queue.js         request pacing
 src/groups.js        rank lookup + member paging
 src/presence.js      batched presence calls
+src/follows.js       follow / unfollow / following-exists
 src/matching.js      "is this person in the target game" (pure, unit tested)
-src/watcher.js       the loop: scrape -> poll -> dedupe -> notify
+src/watcher.js       the loop: scrape -> poll -> probe -> dedupe -> notify -> unfollow
 src/discord.js       webhook embeds
 src/resolve.js       share link -> ids helper
 src/index.js         CLI
@@ -129,3 +190,7 @@ src/index.js         CLI
 ```bash
 npm test
 ```
+
+The test suite fakes the Roblox API end to end, including the probe paths (reveal,
+no-reveal, pre-existing follow, dry run, captcha pause). It has never been run
+against the live API from this repo's CI — first real run is your smoke test.

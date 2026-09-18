@@ -8,7 +8,21 @@
     "memberCacheHours": 6,
     "presenceBatchSize": 50,
     "renotifyMinutes": 30,
-    "notifyOnUnknownGame": false
+    "notifyOnUnknownGame": false,
+    "probe": {
+      "enabled": false,
+      "maxPerCycle": 10,
+      "maxActiveFollows": 60,
+      "minIntervalMs": 1500,
+      "settleMs": 4000,
+      "recheckAttempts": 2,
+      "keepFollowMinutes": 60,
+      "targetGraceMinutes": 20,
+      "opaqueBackoffHours": 12,
+      "pauseOnErrorMinutes": 30,
+      "unfollowOnExit": true,
+      "dryRun": false
+    }
   },
   "watchers": [
     {
@@ -24,6 +38,9 @@
         "universeIds": [],
         "placeIds": [],
         "nameMatch": "The Hunt"
+      },
+      "probe": {
+        "enabled": true
       }
     },
     {
@@ -39,6 +56,9 @@
         "universeIds": [],
         "placeIds": [],
         "nameMatch": "The Hunt"
+      },
+      "probe": {
+        "enabled": true
       }
     }
   ]

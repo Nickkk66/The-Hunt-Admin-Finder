@@ -43,6 +43,21 @@ const DEFAULTS = {
   enabled: true,
 };
 
+const PROBE_DEFAULTS = {
+  enabled: false,
+  maxPerCycle: 10,
+  maxActiveFollows: 60,
+  minIntervalMs: 1500,
+  settleMs: 4000,
+  recheckAttempts: 2,
+  keepFollowMinutes: 60,
+  targetGraceMinutes: 20,
+  opaqueBackoffHours: 12,
+  pauseOnErrorMinutes: 30,
+  unfollowOnExit: true,
+  dryRun: false,
+};
+
 export async function loadConfig(path = 'watchers.json') {
   if (!existsSync(path)) {
     throw new Error(
@@ -52,7 +67,12 @@ export async function loadConfig(path = 'watchers.json') {
   const raw = JSON.parse(await readFile(path, 'utf8'));
   const expanded = expandEnv(raw);
 
-  const watchers = (expanded.watchers ?? []).map((w) => ({ ...DEFAULTS, ...expanded.defaults, ...w }));
+  const watchers = (expanded.watchers ?? []).map((w) => ({
+    ...DEFAULTS,
+    ...expanded.defaults,
+    ...w,
+    probe: { ...PROBE_DEFAULTS, ...expanded.defaults?.probe, ...w.probe },
+  }));
   for (const w of watchers) validateWatcher(w);
 
   return {
@@ -77,6 +97,16 @@ function validateWatcher(w) {
   if (!hasTarget) {
     problems.push('target needs at least one of universeIds, placeIds or nameMatch (run `npm run resolve`)');
   }
+  if (w.probe?.enabled) {
+    if (w.probe.maxPerCycle > 25) {
+      problems.push('probe.maxPerCycle above 25 is a great way to get your account captcha-walled');
+    }
+    if (w.probe.minIntervalMs < 500) problems.push('probe.minIntervalMs below 500 is too fast for follow calls');
+    if (w.probe.maxActiveFollows < w.probe.maxPerCycle) {
+      problems.push('probe.maxActiveFollows must be at least probe.maxPerCycle');
+    }
+  }
+
   if (problems.length) {
     throw new Error(`Watcher "${w.name ?? '(unnamed)'}" is invalid: ${problems.join('; ')}`);
   }
