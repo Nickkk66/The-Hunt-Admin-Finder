@@ -1,0 +1,65 @@
+{
+  "roblox": {
+    "maxConcurrent": 2,
+    "minIntervalMs": 250
+  },
+  "defaults": {
+    "pollIntervalSeconds": 90,
+    "memberCacheHours": 6,
+    "presenceBatchSize": 50,
+    "renotifyMinutes": 30,
+    "notifyOnUnknownGame": false,
+    "probe": {
+      "enabled": false,
+      "maxPerCycle": 10,
+      "maxActiveFollows": 60,
+      "minIntervalMs": 1500,
+      "settleMs": 4000,
+      "recheckAttempts": 2,
+      "keepFollowMinutes": 60,
+      "targetGraceMinutes": 20,
+      "opaqueBackoffHours": 12,
+      "pauseOnErrorMinutes": 30,
+      "unfollowOnExit": true,
+      "dryRun": false
+    }
+  },
+  "watchers": [
+    {
+      "name": "silver-wings",
+      "enabled": true,
+      "itemName": "Silver Wings",
+      "embedColor": 12632256,
+      "groupId": 1200769,
+      "rank": "Team Member",
+      "webhookUrl": "${DISCORD_WEBHOOK_SILVER_WINGS}",
+      "webhookUsername": "Silver Wings Watcher",
+      "target": {
+        "universeIds": [],
+        "placeIds": [],
+        "nameMatch": "The Hunt"
+      },
+      "probe": {
+        "enabled": true
+      }
+    },
+    {
+      "name": "golden-wings",
+      "enabled": true,
+      "itemName": "Golden Wings",
+      "embedColor": 16766720,
+      "groupId": 4199740,
+      "rank": "Video Star",
+      "webhookUrl": "${DISCORD_WEBHOOK_GOLDEN_WINGS}",
+      "webhookUsername": "Golden Wings Watcher",
+      "target": {
+        "universeIds": [],
+        "placeIds": [],
+        "nameMatch": "The Hunt"
+      },
+      "probe": {
+        "enabled": true
+      }
+    }
+  ]
+}
