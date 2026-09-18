@@ -1,0 +1,16 @@
+{
+  "name": "the-hunt-admin-finder",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Watches Roblox group ranks for members playing The Hunt and pings a Discord webhook.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "once": "node src/index.js --once",
+    "resolve": "node src/resolve.js",
+    "test": "node --test test/*.test.js"
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "roblox": {
+    "maxConcurrent": 2,
+    "minIntervalMs": 250
+  },
+  "defaults": {
+    "pollIntervalSeconds": 90,
+    "memberCacheHours": 6,
+    "presenceBatchSize": 50,
+    "renotifyMinutes": 30,
+    "notifyOnUnknownGame": false
+  },
+  "watchers": [
+    {
+      "name": "silver-wings",
+      "enabled": true,
+      "itemName": "Silver Wings",
+      "embedColor": 12632256,
+      "groupId": 1200769,
+      "rank": "Team Member",
+      "webhookUrl": "${DISCORD_WEBHOOK_SILVER}",
+      "webhookUsername": "Silver Wings Watcher",
+      "target": {
+        "universeIds": [],
+        "placeIds": [],
+        "nameMatch": "The Hunt"
+      }
+    },
+    {
+      "name": "golden-wings",
+      "enabled": true,
+      "itemName": "Golden Wings",
+      "embedColor": 16766720,
+      "groupId": 4199740,
+      "rank": "Video Star",
+      "webhookUrl": "${DISCORD_WEBHOOK_GOLDEN}",
+      "webhookUsername": "Golden Wings Watcher",
+      "target": {
+        "universeIds": [],
+        "placeIds": [],
+        "nameMatch": "The Hunt"
+      }
+    }
+  ]
+}
