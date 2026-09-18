@@ -4,7 +4,18 @@ import { existsSync } from 'node:fs';
 /** Minimal .env loader so the project stays dependency-free. */
 export async function loadEnv(path = '.env') {
   if (!existsSync(path)) return;
-  const text = await readFile(path, 'utf8');
+
+  let text;
+  try {
+    text = await readFile(path, 'utf8');
+  } catch (err) {
+    // A .env that exists but won't open (antivirus lock, an un-hydrated cloud
+    // placeholder, odd ACLs) is not worth dying over: the same values can come
+    // from the real environment, and the dashboard takes them from its form.
+    console.warn(`warning: cannot read ${path} (${err.code ?? err.message}) - continuing without it`);
+    return;
+  }
+
   for (const line of text.split('\n')) {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith('#')) continue;
