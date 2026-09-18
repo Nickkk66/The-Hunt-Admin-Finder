@@ -13,9 +13,11 @@ permissions:
   pages: write
   id-token: write
 
+# Never cancel a deployment that is already uploading: a half-applied deploy
+# leaves the live site in whatever state the cancelled run got to.
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   deploy:
@@ -26,6 +28,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+        with:
+          # Create the Pages site on first run instead of failing with
+          # "Get Pages site failed" when it has never been enabled by hand.
+          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: docs

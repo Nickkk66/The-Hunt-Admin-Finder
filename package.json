@@ -9,6 +9,7 @@
   },
   "scripts": {
     "start": "node src/index.js",
+    "setup": "node src/setup.js",
     "once": "node src/index.js --once",
     "resolve": "node src/resolve.js",
     "test": "node --test test/*.test.js",

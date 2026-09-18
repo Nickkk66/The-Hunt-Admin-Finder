@@ -55,8 +55,9 @@ It cannot run the watcher, and neither can any other browser page:
 **Locally** the same page gets a working start button:
 
 ```bash
-npm run ui            # http://localhost:8787
+npm run ui                    # opens http://127.0.0.1:8787
 npm run ui -- --port 9000
+npm run ui -- --no-open       # don't launch a browser
 ```
 
 That serves `docs/index.html` from the watcher process itself, so it's same-origin and the
@@ -65,18 +66,40 @@ Node side does the Roblox calls. You get a start/stop button, per-watcher live s
 only and writes nothing to disk: the cookie and webhook urls stay in memory until you stop
 the process.
 
-To publish the Pages version: push to `main`, then repo Settings → Pages → Source →
-**GitHub Actions**. `.github/workflows/pages.yml` deploys the `docs/` folder on every push
-that touches it.
+**Publishing the Pages version requires a public repo.** GitHub Pages on a *private*
+repo is a paid feature (Pro/Team/Enterprise). If this repo is private on a free account,
+the deploy workflow fails before it runs a single step — no runner, no logs, nothing to
+debug. Make the repo public (Settings → General → Danger Zone → Change visibility), or
+skip Pages entirely and just run it locally, which is what you want anyway.
+
+Once the repo is public, `.github/workflows/pages.yml` deploys `docs/` on every push that
+touches it. It passes `enablement: true` to `configure-pages`, so the Pages site is created
+on the first run — you do **not** need to set Settings → Pages → Source by hand. Trigger
+the first deploy from the Actions tab ("Deploy config builder to Pages" → Run workflow).
+
+Nothing secret ships in `docs/`: the page is static, and `.env`, `watchers.json` and
+`.state/` are all gitignored.
 
 ## Setup
 
-Node 20 or newer. No dependencies to install.
+Node 20 or newer (`node -v` to check; get it from <https://nodejs.org>). No dependencies
+to install — there is no `npm install` step, the project has zero deps.
 
 ```bash
-cp .env.example .env          # fill in ROBLOX_COOKIE + both webhook urls
-cp watchers.example.json watchers.json
+git clone https://github.com/Nickkk66/The-Hunt-Admin-Finder.git
+cd The-Hunt-Admin-Finder
+npm run setup                 # creates .env and watchers.json from the examples
 ```
+
+`npm run setup` never overwrites a file you already have, so re-running it is safe. It
+prints which values in `.env` are still blank. Fill those in, then:
+
+```bash
+npm run ui                    # opens http://127.0.0.1:8787 in your browser
+```
+
+Works the same on Windows, macOS and Linux. Use `npm run ui -- --no-open` if you'd rather
+open the tab yourself, and `npm run ui -- --port 9000` to move it off 8787.
 
 Getting the cookie: log into roblox.com, DevTools → Application → Cookies →
 `https://www.roblox.com` → `.ROBLOSECURITY` → copy the whole value (including the
@@ -221,6 +244,7 @@ src/watcher.js       the loop: scrape -> poll -> probe -> dedupe -> notify -> un
 src/discord.js       webhook embeds
 src/resolve.js       share link -> ids helper
 src/server.js        localhost dashboard + start/stop api
+src/setup.js         one-command local scaffolding (npm run setup)
 src/index.js         CLI
 src/ui.js            npm run ui entry point
 docs/index.html      the page, served by Pages and by src/server.js
