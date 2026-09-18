@@ -34,6 +34,41 @@ This only works as well as Roblox lets it, and the gaps are real:
    Roblox's ToS doesn't love it. Worst realistic case is rate limiting, a captcha
    wall, or a flagged account. Your call.
 
+## Web interface
+
+There's a single page that works two ways.
+
+**On GitHub Pages** (`https://nickkk66.github.io/The-Hunt-Admin-Finder/`) it is a config
+builder. You fill in group ids, ranks, webhooks and probe settings, and it generates your
+`watchers.json` and `.env` with copy and download buttons. It validates as you type and can
+fire a test message at a Discord webhook. **Nothing is saved** - no localStorage, no cookies,
+no server. Reload the page and it's blank again.
+
+It cannot run the watcher, and neither can any other browser page:
+
+- Roblox's API sends no CORS headers, so `fetch` from `github.io` to `presence.roblox.com`
+  is blocked before it leaves your browser.
+- `.ROBLOSECURITY` is httpOnly on roblox.com, so page JavaScript cannot read or attach it.
+- The only way around that is a CORS proxy, which means handing your session cookie to
+  somebody else's server. That is an account takeover waiting to happen. Don't.
+
+**Locally** the same page gets a working start button:
+
+```bash
+npm run ui            # http://localhost:8787
+npm run ui -- --port 9000
+```
+
+That serves `docs/index.html` from the watcher process itself, so it's same-origin and the
+Node side does the Roblox calls. You get a start/stop button, per-watcher live status
+(members, last sweep, hidden count, active follows) and a log tail. It binds to 127.0.0.1
+only and writes nothing to disk: the cookie and webhook urls stay in memory until you stop
+the process.
+
+To publish the Pages version: push to `main`, then repo Settings → Pages → Source →
+**GitHub Actions**. `.github/workflows/pages.yml` deploys the `docs/` folder on every push
+that touches it.
+
 ## Setup
 
 Node 20 or newer. No dependencies to install.
@@ -78,6 +113,7 @@ npm run once              # one sweep, then exit (good for a first smoke test)
 npm start -- --only silver-wings
 npm start -- --refresh    # force a re-scrape of the member list
 npm start -- --unfollow-all   # undo every follow the probe made, then exit
+npm run ui                    # the web dashboard on localhost
 LOG_LEVEL=debug npm start
 ```
 
@@ -184,7 +220,10 @@ src/matching.js      "is this person in the target game" (pure, unit tested)
 src/watcher.js       the loop: scrape -> poll -> probe -> dedupe -> notify -> unfollow
 src/discord.js       webhook embeds
 src/resolve.js       share link -> ids helper
+src/server.js        localhost dashboard + start/stop api
 src/index.js         CLI
+src/ui.js            npm run ui entry point
+docs/index.html      the page, served by Pages and by src/server.js
 ```
 
 ```bash

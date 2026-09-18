@@ -32,7 +32,7 @@
       "embedColor": 12632256,
       "groupId": 1200769,
       "rank": "Team Member",
-      "webhookUrl": "${DISCORD_WEBHOOK_SILVER}",
+      "webhookUrl": "${DISCORD_WEBHOOK_SILVER_WINGS}",
       "webhookUsername": "Silver Wings Watcher",
       "target": {
         "universeIds": [],
@@ -50,7 +50,7 @@
       "embedColor": 16766720,
       "groupId": 4199740,
       "rank": "Video Star",
-      "webhookUrl": "${DISCORD_WEBHOOK_GOLDEN}",
+      "webhookUrl": "${DISCORD_WEBHOOK_GOLDEN_WINGS}",
       "webhookUsername": "Golden Wings Watcher",
       "target": {
         "universeIds": [],

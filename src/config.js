@@ -58,13 +58,8 @@ const PROBE_DEFAULTS = {
   dryRun: false,
 };
 
-export async function loadConfig(path = 'watchers.json') {
-  if (!existsSync(path)) {
-    throw new Error(
-      `Config not found at ${path}. Copy watchers.example.json to watchers.json and fill it in.`,
-    );
-  }
-  const raw = JSON.parse(await readFile(path, 'utf8'));
+/** Shapes a raw config object. Shared by the file loader and the local UI. */
+export function buildConfig(raw, { cookie = '' } = {}) {
   const expanded = expandEnv(raw);
 
   const watchers = (expanded.watchers ?? []).map((w) => ({
@@ -77,12 +72,21 @@ export async function loadConfig(path = 'watchers.json') {
 
   return {
     roblox: {
-      cookie: process.env.ROBLOX_COOKIE || expanded.roblox?.cookie || '',
+      cookie: cookie || process.env.ROBLOX_COOKIE || expanded.roblox?.cookie || '',
       maxConcurrent: expanded.roblox?.maxConcurrent ?? 2,
       minIntervalMs: expanded.roblox?.minIntervalMs ?? 250,
     },
     watchers,
   };
+}
+
+export async function loadConfig(path = 'watchers.json') {
+  if (!existsSync(path)) {
+    throw new Error(
+      `Config not found at ${path}. Copy watchers.example.json to watchers.json and fill it in.`,
+    );
+  }
+  return buildConfig(JSON.parse(await readFile(path, 'utf8')));
 }
 
 function validateWatcher(w) {

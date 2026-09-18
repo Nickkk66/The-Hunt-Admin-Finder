@@ -27,6 +27,27 @@ export class Watcher {
     this.roleName = null;
     this.gameNames = new Map();
     this.stopped = false;
+    this.lastTick = null;
+    this.recentHits = [];
+  }
+
+  /** Snapshot for the local dashboard. */
+  status() {
+    return {
+      name: this.config.name,
+      itemName: this.config.itemName ?? null,
+      group: this.groupName,
+      rank: this.roleName,
+      members: this.members.length,
+      probing: Boolean(this.config.probe?.enabled),
+      dryRun: Boolean(this.config.probe?.dryRun),
+      activeFollows: Object.keys(this.state?.follows ?? {}).length,
+      probePausedUntil: this.state?.probePausedUntil ?? 0,
+      pollIntervalSeconds: this.config.pollIntervalSeconds,
+      lastTick: this.lastTick,
+      recentHits: this.recentHits,
+      stopped: this.stopped,
+    };
   }
 
   async init({ forceRefresh = false } = {}) {
@@ -126,7 +147,34 @@ export class Watcher {
 
     await this.#reconcileFollows(presences);
 
-    return this.#notify(hits);
+    const notified = await this.#notify(hits);
+
+    this.lastTick = {
+      at: Date.now(),
+      durationMs: Date.now() - started,
+      checked: presences.length,
+      inGame: inGame.length,
+      hidden: hidden.length,
+      matched: hits.length,
+      notified: notified.length,
+    };
+    if (notified.length) {
+      this.recentHits = [
+        ...notified.map((h) => ({
+          at: Date.now(),
+          userId: h.userId,
+          username: h.username,
+          displayName: h.displayName,
+          confidence: h.confidence,
+          placeId: h.placeId,
+          gameId: h.gameId,
+          gameName: h.gameName,
+        })),
+        ...this.recentHits,
+      ].slice(0, 25);
+    }
+
+    return notified;
   }
 
   async #toHit(presence, verdict) {

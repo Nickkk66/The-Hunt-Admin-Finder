@@ -1,0 +1,717 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hunt Watcher</title>
+<meta name="description" content="Config builder and local dashboard for the Roblox group-rank Hunt watcher.">
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f6f7f9;
+    --panel: #ffffff;
+    --panel-2: #f0f2f5;
+    --ink: #14171c;
+    --ink-soft: #5b6472;
+    --line: #dfe3ea;
+    --accent: #3b6df5;
+    --accent-ink: #ffffff;
+    --warn-bg: #fff4e0;
+    --warn-line: #e8b765;
+    --warn-ink: #6b4708;
+    --danger: #c2372c;
+    --ok: #1c7a4a;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #101319;
+      --panel: #171b23;
+      --panel-2: #1e2330;
+      --ink: #e7eaf0;
+      --ink-soft: #9aa4b5;
+      --line: #2a3140;
+      --accent: #6b93ff;
+      --accent-ink: #0b1020;
+      --warn-bg: #2e2415;
+      --warn-line: #7a5a1f;
+      --warn-ink: #f0cd8e;
+      --danger: #ef6b5e;
+      --ok: #59c98d;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 32px 16px 80px; }
+  header { margin-bottom: 20px; }
+  h1 { font-size: 26px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  h2 { font-size: 17px; margin: 0 0 2px; }
+  h3 { font-size: 14px; margin: 0; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft); }
+  p { margin: 6px 0; }
+  .sub { color: var(--ink-soft); font-size: 14px; }
+  code, pre, .mono { font-family: var(--mono); font-size: 13px; }
+
+  .badge {
+    display: inline-block; padding: 2px 9px; border-radius: 999px;
+    font-size: 12px; font-weight: 600; border: 1px solid var(--line); background: var(--panel-2);
+  }
+  .badge.live { border-color: var(--ok); color: var(--ok); }
+
+  section {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 18px; margin-bottom: 16px;
+  }
+  .note {
+    background: var(--warn-bg); border: 1px solid var(--warn-line); color: var(--warn-ink);
+    border-radius: var(--radius); padding: 14px 16px; margin-bottom: 16px; font-size: 14px;
+  }
+  .note strong { font-weight: 700; }
+  .note.info { background: var(--panel-2); border-color: var(--line); color: var(--ink); }
+  .note ul { margin: 8px 0 0; padding-left: 20px; }
+
+  .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+  label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  label .hint { display: block; font-weight: 400; color: var(--ink-soft); font-size: 12px; margin-top: 2px; }
+  input[type=text], input[type=password], input[type=number], textarea {
+    width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line);
+    background: var(--panel-2); color: var(--ink); font: inherit;
+  }
+  input:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  input[type=color] { width: 46px; height: 34px; padding: 2px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel-2); }
+  .check { display: flex; align-items: center; gap: 8px; font-size: 14px; margin: 8px 0; }
+  .check input { width: 16px; height: 16px; }
+  .check label { margin: 0; font-weight: 500; }
+
+  button {
+    font: inherit; font-weight: 600; padding: 8px 14px; border-radius: 8px;
+    border: 1px solid var(--line); background: var(--panel-2); color: var(--ink); cursor: pointer;
+  }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  button.danger { color: var(--danger); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .spread { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+
+  .watcher { border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; background: var(--panel-2); }
+  .watcher > .spread { margin-bottom: 12px; }
+  details { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; }
+  summary { cursor: pointer; font-weight: 600; font-size: 14px; }
+  details .grid { margin-top: 12px; }
+
+  .tabs { display: flex; gap: 4px; margin-bottom: 10px; flex-wrap: wrap; }
+  .tabs button { padding: 5px 12px; font-size: 13px; }
+  .tabs button[aria-selected=true] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  pre.out {
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px;
+    padding: 14px; overflow: auto; max-height: 420px; margin: 0; white-space: pre;
+  }
+  .problems { color: var(--danger); font-size: 13px; margin-top: 8px; }
+  .problems ul { margin: 4px 0 0; padding-left: 20px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  th { color: var(--ink-soft); font-weight: 600; }
+  #logs {
+    background: #0c0f15; color: #cfd6e4; border-radius: 8px; padding: 12px;
+    height: 260px; overflow: auto; font-family: var(--mono); font-size: 12px; white-space: pre-wrap;
+  }
+  #logs .warn { color: #f0cd8e; }
+  #logs .error { color: #ef8b80; }
+  .hidden { display: none !important; }
+  footer { color: var(--ink-soft); font-size: 13px; text-align: center; margin-top: 28px; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="spread">
+    <div>
+      <h1>Hunt Watcher</h1>
+      <p class="sub">Fill this in, copy the two files out, run the watcher on your machine.</p>
+    </div>
+    <span class="badge" id="mode-badge">config builder</span>
+  </div>
+</header>
+
+<div class="note" id="static-note">
+  <strong>This page cannot watch anything by itself.</strong>
+  Roblox's API sends no CORS headers, so a browser on
+  <span class="mono">github.io</span> is blocked from calling it, and your
+  <span class="mono">.ROBLOSECURITY</span> cookie is httpOnly on roblox.com so JavaScript
+  here could not attach it anyway. Any site claiming to do this in-browser is routing your
+  cookie through someone else's server, which hands them your account.
+  <ul>
+    <li>Here it builds your <span class="mono">watchers.json</span> and <span class="mono">.env</span>.</li>
+    <li>Run <span class="mono">npm run ui</span> in the repo and open
+      <span class="mono">http://localhost:8787</span> to get this same page with a working
+      start button and live status.</li>
+  </ul>
+</div>
+
+<div class="note info" id="live-note" style="display:none">
+  <strong>Live mode.</strong> Served from your own machine, so the buttons below actually run the
+  watcher. Nothing you type is written to disk; it lives in memory until you stop the process.
+</div>
+
+<section>
+  <div class="spread">
+    <div>
+      <h2>Roblox account</h2>
+      <p class="sub">Nothing on this page is saved. No cookies, no localStorage. Reload and it's gone.</p>
+    </div>
+    <button type="button" id="clear-all" class="danger">Clear everything</button>
+  </div>
+  <div class="grid" style="margin-top:12px">
+    <div style="grid-column: 1 / -1">
+      <label for="cookie">.ROBLOSECURITY cookie
+        <span class="hint">Optional here. You can leave it blank and paste it straight into <span class="mono">.env</span> yourself, which is the paranoid-correct move.</span>
+      </label>
+      <input type="password" id="cookie" autocomplete="off" spellcheck="false" placeholder="_|WARNING:-DO-NOT-SHARE-THIS...">
+    </div>
+    <div>
+      <label for="maxConcurrent">Concurrent requests</label>
+      <input type="number" id="maxConcurrent" value="2" min="1" max="6">
+    </div>
+    <div>
+      <label for="minIntervalMs">Gap between requests (ms)</label>
+      <input type="number" id="minIntervalMs" value="250" min="0" step="50">
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Defaults</h2>
+  <p class="sub">Applied to every watcher unless a watcher overrides it.</p>
+  <div class="grid" style="margin-top:12px">
+    <div>
+      <label for="pollIntervalSeconds">Poll interval (s)
+        <span class="hint">Below 60 gets you throttled.</span>
+      </label>
+      <input type="number" id="pollIntervalSeconds" value="90" min="15">
+    </div>
+    <div>
+      <label for="memberCacheHours">Member cache (h)</label>
+      <input type="number" id="memberCacheHours" value="6" min="1">
+    </div>
+    <div>
+      <label for="presenceBatchSize">Presence batch size</label>
+      <input type="number" id="presenceBatchSize" value="50" min="1" max="100">
+    </div>
+    <div>
+      <label for="renotifyMinutes">Re-notify cooldown (min)</label>
+      <input type="number" id="renotifyMinutes" value="30" min="0">
+    </div>
+  </div>
+  <div class="check">
+    <input type="checkbox" id="notifyOnUnknownGame">
+    <label for="notifyOnUnknownGame">Ping for "in a game, no idea which" (noisy, and skips follow probing)</label>
+  </div>
+</section>
+
+<section>
+  <div class="spread">
+    <div>
+      <h2>Watchers</h2>
+      <p class="sub">One per group rank you want to sit on.</p>
+    </div>
+    <button type="button" id="add-watcher">Add watcher</button>
+  </div>
+  <div id="watchers" style="margin-top:12px"></div>
+</section>
+
+<section>
+  <div class="spread">
+    <div>
+      <h2>Output</h2>
+      <p class="sub">Copy these into the repo root.</p>
+    </div>
+    <div class="row">
+      <button type="button" id="copy">Copy</button>
+      <button type="button" id="download">Download</button>
+    </div>
+  </div>
+  <div class="tabs" id="tabs" role="tablist">
+    <button type="button" role="tab" data-tab="json" aria-selected="true">watchers.json</button>
+    <button type="button" role="tab" data-tab="env" aria-selected="false">.env</button>
+    <button type="button" role="tab" data-tab="cmd" aria-selected="false">commands</button>
+  </div>
+  <pre class="out" id="output"></pre>
+  <div class="problems" id="problems"></div>
+</section>
+
+<section id="run-panel" class="hidden">
+  <div class="spread">
+    <div>
+      <h2>Run</h2>
+      <p class="sub" id="run-status">Idle.</p>
+    </div>
+    <div class="row">
+      <button type="button" id="start" class="primary">Start watching</button>
+      <button type="button" id="stop" disabled>Stop</button>
+    </div>
+  </div>
+  <div id="status-tables" style="margin-top:14px"></div>
+  <h3 style="margin:16px 0 6px">Log</h3>
+  <div id="logs"></div>
+</section>
+
+<footer>
+  <a href="https://github.com/Nickkk66/The-Hunt-Admin-Finder">Nickkk66/The-Hunt-Admin-Finder</a>
+  &middot; nothing typed here leaves your browser unless you press Start in live mode
+</footer>
+
+</div>
+
+<script type="module">
+const $ = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
+
+let LIVE = false;
+let activeTab = 'json';
+let logCursor = -1;
+let statusTimer = null;
+
+const DEFAULT_WATCHERS = [
+  {
+    name: 'silver-wings', itemName: 'Silver Wings', groupId: 1200769, rank: 'Team Member',
+    color: '#c0c0c0', webhookUrl: '', universeIds: '', placeIds: '', nameMatch: 'The Hunt',
+    probe: { enabled: true, dryRun: true, maxPerCycle: 10, maxActiveFollows: 60, keepFollowMinutes: 60, targetGraceMinutes: 20, opaqueBackoffHours: 12 },
+  },
+  {
+    name: 'golden-wings', itemName: 'Golden Wings', groupId: 4199740, rank: 'Video Star',
+    color: '#ffd700', webhookUrl: '', universeIds: '', placeIds: '', nameMatch: 'The Hunt',
+    probe: { enabled: true, dryRun: true, maxPerCycle: 10, maxActiveFollows: 60, keepFollowMinutes: 60, targetGraceMinutes: 20, opaqueBackoffHours: 12 },
+  },
+];
+
+// --- form -------------------------------------------------------------------
+
+function watcherCard(w) {
+  const el = document.createElement('div');
+  el.className = 'watcher';
+  el.innerHTML = `
+    <div class="spread">
+      <h3 class="wname">watcher</h3>
+      <button type="button" class="danger remove">Remove</button>
+    </div>
+    <div class="grid">
+      <div>
+        <label>Name <span class="hint">used for the state file</span></label>
+        <input type="text" data-f="name" spellcheck="false">
+      </div>
+      <div>
+        <label>Item you're after</label>
+        <input type="text" data-f="itemName">
+      </div>
+      <div>
+        <label>Group id</label>
+        <input type="number" data-f="groupId">
+      </div>
+      <div>
+        <label>Rank name <span class="hint">or a rank number</span></label>
+        <input type="text" data-f="rank" spellcheck="false">
+      </div>
+      <div style="grid-column: 1 / -1">
+        <label>Discord webhook url</label>
+        <div class="row">
+          <input type="text" data-f="webhookUrl" spellcheck="false" placeholder="https://discord.com/api/webhooks/..." style="flex:1 1 300px">
+          <button type="button" class="test">Send test</button>
+        </div>
+        <div class="sub test-result" style="margin-top:4px"></div>
+      </div>
+      <div>
+        <label>Universe ids <span class="hint">comma separated, from npm run resolve</span></label>
+        <input type="text" data-f="universeIds" spellcheck="false" placeholder="e.g. 6238705663">
+      </div>
+      <div>
+        <label>Place ids <span class="hint">comma separated</span></label>
+        <input type="text" data-f="placeIds" spellcheck="false">
+      </div>
+      <div>
+        <label>Name fallback <span class="hint">regex on the location string</span></label>
+        <input type="text" data-f="nameMatch" spellcheck="false">
+      </div>
+      <div>
+        <label>Embed colour</label>
+        <input type="color" data-f="color">
+      </div>
+    </div>
+    <details>
+      <summary>Follow probing</summary>
+      <p class="sub" style="margin-top:8px">
+        Follows people whose game is hidden to see what they're in, then unfollows the ones it
+        couldn't read. Only helps people whose joins are set to Followers. It is account-visible
+        activity, so keep the caps low and leave dry run on for the first session.
+      </p>
+      <div class="check"><input type="checkbox" data-f="probe.enabled"><label>Enable probing</label></div>
+      <div class="check"><input type="checkbox" data-f="probe.dryRun"><label>Dry run (log who it would follow, follow nobody)</label></div>
+      <div class="grid">
+        <div><label>Max follows per sweep</label><input type="number" data-f="probe.maxPerCycle" min="1" max="25"></div>
+        <div><label>Max outstanding follows</label><input type="number" data-f="probe.maxActiveFollows" min="1"></div>
+        <div><label>Keep a revealed follow (min)</label><input type="number" data-f="probe.keepFollowMinutes" min="0"></div>
+        <div><label>Grace after seeing them (min)</label><input type="number" data-f="probe.targetGraceMinutes" min="0"></div>
+        <div><label>Re-probe backoff (h)</label><input type="number" data-f="probe.opaqueBackoffHours" min="1"></div>
+      </div>
+    </details>`;
+
+  for (const input of $$('[data-f]', el)) {
+    const path = input.dataset.f.split('.');
+    const value = path.reduce((o, k) => o?.[k], w);
+    if (input.type === 'checkbox') input.checked = Boolean(value);
+    else input.value = value ?? '';
+  }
+
+  $('.remove', el).addEventListener('click', () => { el.remove(); render(); });
+  $('.test', el).addEventListener('click', () => testWebhook(el));
+  el.addEventListener('input', render);
+  el.addEventListener('change', render);
+  return el;
+}
+
+function readWatchers() {
+  return $$('#watchers .watcher').map((el) => {
+    const w = { probe: {} };
+    for (const input of $$('[data-f]', el)) {
+      const [head, tail] = input.dataset.f.split('.');
+      const raw = input.type === 'checkbox' ? input.checked : input.value;
+      const value = input.type === 'number' && raw !== '' ? Number(raw) : raw;
+      if (tail) w[head][tail] = value;
+      else w[head] = value;
+    }
+    return w;
+  });
+}
+
+const idList = (s) => String(s || '').split(/[\s,]+/).filter(Boolean).map(Number).filter((n) => Number.isFinite(n) && n > 0);
+const envKey = (name) => 'DISCORD_WEBHOOK_' + String(name || 'watcher').toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_|_$/g, '');
+
+function buildConfig() {
+  const watchers = readWatchers();
+  return {
+    roblox: {
+      maxConcurrent: Number($('#maxConcurrent').value) || 2,
+      minIntervalMs: Number($('#minIntervalMs').value) || 250,
+    },
+    defaults: {
+      pollIntervalSeconds: Number($('#pollIntervalSeconds').value) || 90,
+      memberCacheHours: Number($('#memberCacheHours').value) || 6,
+      presenceBatchSize: Number($('#presenceBatchSize').value) || 50,
+      renotifyMinutes: Number($('#renotifyMinutes').value) || 0,
+      notifyOnUnknownGame: $('#notifyOnUnknownGame').checked,
+    },
+    watchers: watchers.map((w) => ({
+      name: w.name,
+      enabled: true,
+      itemName: w.itemName,
+      embedColor: parseInt(String(w.color || '#c0c0c0').slice(1), 16),
+      groupId: Number(w.groupId) || 0,
+      rank: w.rank,
+      webhookUrl: '${' + envKey(w.name) + '}',
+      webhookUsername: (w.itemName || w.name) + ' Watcher',
+      target: {
+        universeIds: idList(w.universeIds),
+        placeIds: idList(w.placeIds),
+        nameMatch: w.nameMatch || '',
+      },
+      probe: {
+        enabled: Boolean(w.probe.enabled),
+        dryRun: Boolean(w.probe.dryRun),
+        maxPerCycle: Number(w.probe.maxPerCycle) || 10,
+        maxActiveFollows: Number(w.probe.maxActiveFollows) || 60,
+        keepFollowMinutes: Number(w.probe.keepFollowMinutes) || 0,
+        targetGraceMinutes: Number(w.probe.targetGraceMinutes) || 0,
+        opaqueBackoffHours: Number(w.probe.opaqueBackoffHours) || 12,
+      },
+    })),
+  };
+}
+
+function buildEnv() {
+  const cookie = $('#cookie').value.trim();
+  const lines = [
+    '# Roblox session cookie. Anyone with this is logged into your account.',
+    'ROBLOX_COOKIE=' + (cookie || ''),
+    '',
+  ];
+  for (const w of readWatchers()) {
+    lines.push(envKey(w.name) + '=' + (w.webhookUrl || '').trim());
+  }
+  lines.push('', 'LOG_LEVEL=info');
+  return lines.join('\n');
+}
+
+function problems() {
+  const out = [];
+  const seen = new Set();
+  for (const w of readWatchers()) {
+    const label = w.name || '(unnamed)';
+    if (!w.name) out.push('a watcher has no name');
+    else if (seen.has(w.name)) out.push(`two watchers are both called "${w.name}"`);
+    seen.add(w.name);
+    if (!Number(w.groupId)) out.push(`${label}: group id missing`);
+    if (!String(w.rank || '').trim()) out.push(`${label}: rank missing`);
+    if (!idList(w.universeIds).length && !idList(w.placeIds).length && !String(w.nameMatch || '').trim()) {
+      out.push(`${label}: needs a universe id, a place id or a name fallback`);
+    }
+    if (!String(w.webhookUrl || '').trim()) out.push(`${label}: no webhook url, so nothing will reach you`);
+    else if (!/^https:\/\/(discord|discordapp)\.com\/api\/webhooks\//.test(w.webhookUrl.trim())) {
+      out.push(`${label}: that doesn't look like a Discord webhook url`);
+    }
+    if (w.probe.enabled && Number(w.probe.maxPerCycle) > 25) out.push(`${label}: more than 25 follows per sweep will get you captcha-walled`);
+  }
+  if (Number($('#pollIntervalSeconds').value) < 60) out.push('a poll interval under 60s will get you rate limited on a rank this size');
+  return out;
+}
+
+const COMMANDS = () => [
+  '# 1. put the two files in the repo root',
+  '#    watchers.json  and  .env',
+  '',
+  '# 2. sanity check one sweep',
+  'npm run once',
+  '',
+  '# 3. leave it running',
+  'npm start',
+  '',
+  '# other bits',
+  'npm run ui                 # this page, locally, with a start button',
+  'npm run resolve "<link>"   # turn a share link into ids',
+  'npm start -- --unfollow-all',
+].join('\n');
+
+function currentOutput() {
+  if (activeTab === 'env') return buildEnv();
+  if (activeTab === 'cmd') return COMMANDS();
+  return JSON.stringify(buildConfig(), null, 2);
+}
+
+function render() {
+  $('#output').textContent = currentOutput();
+  const issues = problems();
+  $('#problems').innerHTML = issues.length
+    ? '<strong>Before this will work:</strong><ul>' + issues.map((p) => `<li>${p}</li>`).join('') + '</ul>'
+    : '';
+  for (const el of $$('#watchers .watcher')) {
+    $('.wname', el).textContent = $('[data-f="name"]', el).value || 'watcher';
+  }
+  if (LIVE) $('#start').disabled = issues.length > 0 || $('#stop').disabled === false;
+}
+
+// --- webhook test (Discord allows cross-origin webhook posts) ----------------
+
+async function testWebhook(card) {
+  const url = $('[data-f="webhookUrl"]', card).value.trim();
+  const out = $('.test-result', card);
+  if (!url) { out.textContent = 'Put a webhook url in first.'; return; }
+  out.textContent = 'sending...';
+
+  const name = $('[data-f="name"]', card).value || 'watcher';
+  const color = parseInt($('[data-f="color"]', card).value.slice(1), 16);
+  try {
+    if (LIVE) {
+      const res = await fetch('/api/test-webhook', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ webhookUrl: url, name, color }),
+      });
+      out.textContent = res.ok ? 'sent, go look at the channel' : 'failed, check the url';
+      return;
+    }
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        username: name + ' Watcher',
+        embeds: [{ title: 'Test alert', description: 'Webhook works. Nothing else to see here.', color }],
+      }),
+    });
+    out.textContent = res.ok ? 'sent, go look at the channel' : `Discord said ${res.status}`;
+  } catch (err) {
+    out.textContent = 'request blocked: ' + err.message;
+  }
+}
+
+// --- live mode --------------------------------------------------------------
+
+async function detectMode() {
+  try {
+    const res = await fetch('/api/status', { cache: 'no-store' });
+    if (!res.ok) return;
+    LIVE = true;
+    $('#mode-badge').textContent = 'live dashboard';
+    $('#mode-badge').classList.add('live');
+    $('#static-note').style.display = 'none';
+    $('#live-note').style.display = 'block';
+    $('#run-panel').classList.remove('hidden');
+    pollStatus();
+    statusTimer = setInterval(pollStatus, 3000);
+  } catch {
+    /* static hosting, config-builder only */
+  }
+}
+
+function fmtAgo(ts) {
+  if (!ts) return 'never';
+  const s = Math.round((Date.now() - ts) / 1000);
+  if (s < 60) return s + 's ago';
+  return Math.round(s / 60) + 'm ago';
+}
+
+async function pollStatus() {
+  let data;
+  try {
+    data = await (await fetch('/api/status', { cache: 'no-store' })).json();
+  } catch { return; }
+
+  $('#start').disabled = data.running || problems().length > 0;
+  $('#stop').disabled = !data.running;
+  $('#run-status').textContent = data.error
+    ? 'Error: ' + data.error
+    : data.running
+      ? `Running since ${new Date(data.startedAt).toLocaleTimeString()}.`
+      : 'Idle.';
+
+  $('#status-tables').innerHTML = data.watchers.map((w) => {
+    const t = w.lastTick;
+    const hits = w.recentHits.length
+      ? w.recentHits.slice(0, 6).map((h) =>
+          `<tr><td>${fmtAgo(h.at)}</td><td><a href="https://www.roblox.com/users/${h.userId}/profile" target="_blank" rel="noopener">${h.username}</a></td>` +
+          `<td>${h.gameName ?? '?'}</td><td>${h.confidence}</td>` +
+          `<td class="mono">${h.gameId ? 'joinGameInstance(' + h.placeId + ', "' + h.gameId + '")' : '-'}</td></tr>`).join('')
+      : '<tr><td colspan="5" class="sub">nothing yet</td></tr>';
+    return `
+      <div class="watcher">
+        <div class="spread">
+          <h3>${w.name}</h3>
+          <span class="sub">${w.group ?? '?'} / ${w.rank ?? '?'} &middot; ${w.members} members${w.probing ? (w.dryRun ? ' &middot; probing (dry run)' : ' &middot; probing') : ''}</span>
+        </div>
+        <p class="sub" style="margin-top:6px">
+          ${t ? `last sweep ${fmtAgo(t.at)}: ${t.checked} checked, ${t.inGame} in a game, ${t.hidden} hidden, ${t.matched} matched, ${t.notified} pinged (${(t.durationMs / 1000).toFixed(0)}s)` : 'no sweep yet'}
+          ${w.activeFollows ? ` &middot; ${w.activeFollows} active follow(s)` : ''}
+          ${w.probePausedUntil > Date.now() ? ' &middot; probing paused' : ''}
+        </p>
+        <table style="margin-top:8px">
+          <tr><th>when</th><th>who</th><th>game</th><th>how</th><th>join</th></tr>
+          ${hits}
+        </table>
+      </div>`;
+  }).join('') || '<p class="sub">No watchers running.</p>';
+
+  pollLogs();
+}
+
+async function pollLogs() {
+  let data;
+  try {
+    data = await (await fetch('/api/logs?since=' + logCursor, { cache: 'no-store' })).json();
+  } catch { return; }
+  if (!data.lines.length) return;
+  logCursor = data.cursor;
+  const box = $('#logs');
+  const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 40;
+  for (const line of data.lines) {
+    const div = document.createElement('div');
+    div.className = line.level;
+    const time = new Date(line.at).toLocaleTimeString();
+    div.textContent = `${time} ${line.scope ? '[' + line.scope + '] ' : ''}${line.message}`;
+    box.appendChild(div);
+  }
+  while (box.childElementCount > 400) box.removeChild(box.firstChild);
+  if (atBottom) box.scrollTop = box.scrollHeight;
+}
+
+// --- wiring -----------------------------------------------------------------
+
+function addWatcher(data) {
+  $('#watchers').appendChild(watcherCard(data ?? {
+    name: 'watcher-' + ($$('#watchers .watcher').length + 1), itemName: '', groupId: '', rank: '',
+    color: '#c0c0c0', webhookUrl: '', universeIds: '', placeIds: '', nameMatch: 'The Hunt',
+    probe: { enabled: false, dryRun: true, maxPerCycle: 10, maxActiveFollows: 60, keepFollowMinutes: 60, targetGraceMinutes: 20, opaqueBackoffHours: 12 },
+  }));
+  render();
+}
+
+for (const w of DEFAULT_WATCHERS) $('#watchers').appendChild(watcherCard(w));
+
+$('#add-watcher').addEventListener('click', () => addWatcher());
+document.body.addEventListener('input', (e) => { if (e.target.closest('section')) render(); });
+
+$('#tabs').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-tab]');
+  if (!btn) return;
+  activeTab = btn.dataset.tab;
+  for (const b of $$('#tabs button')) b.setAttribute('aria-selected', String(b === btn));
+  render();
+});
+
+$('#copy').addEventListener('click', async () => {
+  await navigator.clipboard.writeText(currentOutput());
+  const b = $('#copy');
+  b.textContent = 'copied';
+  setTimeout(() => { b.textContent = 'Copy'; }, 1200);
+});
+
+$('#download').addEventListener('click', () => {
+  const name = activeTab === 'env' ? '.env' : activeTab === 'cmd' ? 'commands.txt' : 'watchers.json';
+  const blob = new Blob([currentOutput()], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+$('#clear-all').addEventListener('click', () => {
+  $('#cookie').value = '';
+  $('#watchers').innerHTML = '';
+  for (const w of DEFAULT_WATCHERS) $('#watchers').appendChild(watcherCard({ ...w, webhookUrl: '' }));
+  render();
+});
+
+$('#start').addEventListener('click', async () => {
+  $('#start').disabled = true;
+  $('#run-status').textContent = 'starting, first run scrapes the whole rank...';
+  const res = await fetch('/api/start', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ cookie: $('#cookie').value.trim(), config: withWebhooks(buildConfig()) }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    $('#run-status').textContent = 'could not start: ' + (body.error ?? res.status);
+    $('#start').disabled = false;
+    return;
+  }
+  pollStatus();
+});
+
+/** The generated config uses ${ENV} placeholders; live mode needs the real urls. */
+function withWebhooks(config) {
+  const urls = readWatchers();
+  return {
+    ...config,
+    watchers: config.watchers.map((w, i) => ({ ...w, webhookUrl: (urls[i]?.webhookUrl || '').trim() })),
+  };
+}
+
+$('#stop').addEventListener('click', async () => {
+  $('#stop').disabled = true;
+  $('#run-status').textContent = 'stopping and cleaning up follows...';
+  await fetch('/api/stop', { method: 'POST' });
+  pollStatus();
+});
+
+render();
+detectMode();
+</script>
+</body>
+</html>
