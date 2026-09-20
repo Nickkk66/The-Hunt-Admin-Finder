@@ -41,25 +41,36 @@ embed, so you know why that person is on the list when the ping lands at 3am.
 
 The list that ships in `watchers.example.json`:
 
-| Person                | Roblox id  | Status                                                    |
-| --------------------- | ---------- | --------------------------------------------------------- |
-| WaffleTrades          | 2672900117 | watched                                                   |
-| WeirdBlox             | 431900130  | watched                                                   |
-| Zarcyn                | 65141229   | watched                                                   |
-| Fangwing              | 2204301    | watched (Zarc's alt, used for the launcher streams)       |
-| javie12               | 38805399   | watched                                                   |
-| 0kkAleks              | unknown    | **parked** (`enabled: false`)                              |
-| Kirbyyum              | unknown    | **parked** (`enabled: false`)                              |
-| Neatzo                | unknown    | **parked** (`enabled: false`)                              |
+| Person       | Roblox id  | Status                                              |
+| ------------ | ---------- | --------------------------------------------------- |
+| WaffleTrades | 2672900117 | watched                                             |
+| WeirdBlox    | 431900130  | watched                                             |
+| Zarcyn       | 65141229   | watched                                             |
+| Fangwing     | 2204301    | watched (Zarc's alt, used for the launcher streams) |
+| javie12      | 38805399   | watched                                             |
+| 0kkAleks     | 1024848396 | watched (id entered by hand)                        |
+| Neatzo       | 1577246414 | watched (id entered by hand)                        |
+| Kirbyyum     | none found | **parked** (`enabled: false`)                       |
 
-Those ids came off a stream round-up, not out of the Roblox API, and nothing in this repo has
-checked them against a live account. The five that are on carry an id, so worst case you watch
-a wrong-but-real account and get no pings. The three parked ones had no confirmed profile at
-all, and Roblox re-issues freed-up usernames, so resolving them by name could park you on a
-stranger. Confirm the id and flip `enabled` yourself:
+None of those ids came out of the Roblox API - they came off a stream round-up or were typed in
+by hand, and nothing in this repo has checked them against a live account. Worst case you watch
+a wrong-but-real account and simply never get a ping from it, so spot-check them the first time
+you run:
 
 ```bash
-npm run resolve "0kkAleks"                                  # username -> id
+LOG_LEVEL=debug npm start -- --only obsidian-wings --once
+```
+
+That logs the **live** name Roblox returns for every id. A name you don't recognise means that
+id is wrong.
+
+Kirbyyum is parked because no profile turned up for him at all. Do not resolve that one by name
+and switch it on: Roblox re-issues freed-up usernames, so the account holding the name today may
+be a stranger, and this watcher probes by following people. Get the id from the join instructions
+in his own stream instead, then:
+
+```bash
+npm run resolve "Kirbyyum"                                       # username -> id
 npm run resolve "https://www.roblox.com/users/2204301/profile"   # link -> id
 ```
 

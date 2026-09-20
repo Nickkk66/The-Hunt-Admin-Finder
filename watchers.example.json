@@ -94,22 +94,22 @@
           "note": "Stream tracker has him running a 24/7 'launching all 3 items' stream."
         },
         {
-          "userId": null,
+          "userId": 1024848396,
           "username": "0kkAleks",
-          "enabled": false,
-          "note": "Stream is real ('LAUNCHING ALL 3 Reignment with LOW QUEUE') but the Roblox profile behind it is unverified. Put the numeric userId from his own stream here before enabling - a same-name account is probably someone else."
+          "enabled": true,
+          "note": "Stream listed LIVE as 'LAUNCHING ALL 3 Reignment with LOW QUEUE'. Id supplied by hand and not confirmed against the API - check the profile matches the account he links on stream before you trust an alert."
         },
         {
           "userId": null,
           "username": "Kirbyyum",
           "enabled": false,
-          "note": "Advertises all 3 wings in a 24/7 Hunt stream, Roblox profile unverified. Get the id from the join instructions in the stream itself."
+          "note": "Advertises all 3 wings in a 24/7 Hunt stream, but no Roblox profile has been found for him. Parked until you get an id from the join instructions in his own stream - do not resolve this one by name, Roblox re-issues freed-up usernames."
         },
         {
-          "userId": null,
+          "userId": 1577246414,
           "username": "Neatzo",
-          "enabled": false,
-          "note": "Running 'Launching ALL 3 Crowns & Wings 24/7', Roblox profile unverified. Same deal: confirm the id from the stream before enabling."
+          "enabled": true,
+          "note": "Running 'Launching ALL 3 Crowns & Wings 24/7'. Id supplied by hand and not confirmed against the API - check the profile before you trust an alert."
         }
       ],
       "webhookUrl": "${DISCORD_WEBHOOK_OBSIDIAN_WINGS}",
