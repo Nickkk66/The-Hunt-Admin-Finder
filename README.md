@@ -66,6 +66,12 @@ Node side does the Roblox calls. You get a start/stop button, per-watcher live s
 only and writes nothing to disk: the cookie and webhook urls stay in memory until you stop
 the process.
 
+The **Found** panel at the top lists everyone spotted, newest first, with the
+watcher's badge, their item, how full their server is and a join link. It reads a
+small `.state/findings.json`, so it shows finds made by a watcher running in a
+*different* process - the one the launcher started, for instance. That makes the
+page a complete alternative to Discord: leave the webhooks blank and watch here.
+
 **Publishing the Pages version requires a public repo.** GitHub Pages on a *private*
 repo is a paid feature (Pro/Team/Enterprise). If this repo is private on a free account,
 the deploy workflow fails before it runs a single step — no runner, no logs, nothing to
@@ -130,6 +136,35 @@ npm run resolve "https://www.roblox.com/share/g/4199740"
 
 ## Running it
 
+### The easy way: double-click `run.bat`
+
+`run.bat` opens one plain window. It checks five things and shows each in green,
+yellow or red, with what to do about anything that isn't green:
+
+- the program that runs it (Node.js)
+- your saved settings
+- your Roblox login
+- your Discord alerts (yellow, not red - it still works without them)
+- the groups to watch
+
+Then there is **one** button. It reads `Start watching` when it's off and
+`Stop watching` when it's on, so it can't be used to accidentally start a second
+copy and get every Discord ping twice. If something is missing, a blue button
+appears that sets it up for you.
+
+Everything else is behind **More options**: settings, a single one-off check, the
+list of people found, the log, and the folder.
+
+**Settings are edited in the window** - your Roblox login (masked, with a `Show it`
+box), both Discord links and who to ping, each in a text box. Save writes them to
+`.env` and leaves the comments and anything else in there alone. No Notepad, and
+you never have to know what a `.env` is.
+
+It finds `node.exe` by full path rather than trusting `PATH`, because a stray
+`C:\Windows\System32\node` can shadow the real one and hang.
+
+### The command line
+
 ```bash
 npm start                 # both watchers, forever
 npm run once              # one sweep, then exit (good for a first smoke test)
@@ -146,6 +181,23 @@ First start scrapes the whole rank (27 pages for 2.7k people) and caches it in
 
 Once notified about a user in a given server, it won't ping again for
 `renotifyMinutes` (default 30). If they change servers, that's a new ping.
+
+### What an alert looks like
+
+Every alert is the same sentence, led by the watcher's badge:
+
+```
+🥇 **Collie** is in The Hunt right now.
+🥈 **3** Team Members are in The Hunt right now.
+```
+
+The badge comes from `emoji` in `watchers.json`. Leave it out and it is inferred
+from the item name - gold gets 🥇, silver 🥈, anything else 🏅. It also prefixes
+the webhook's display name and shows up in the embed, so a glance at the message
+tells you which item it is.
+
+Newcomers are not phrased differently; they are the ones that trigger the
+`DISCORD_PING` mention, which is what actually makes them stand out.
 
 ## Follow probing (the people hiding their game)
 
@@ -248,6 +300,8 @@ src/setup.js         one-command local scaffolding (npm run setup)
 src/index.js         CLI
 src/ui.js            npm run ui entry point
 docs/index.html      the page, served by Pages and by src/server.js
+run.bat              double-click entry point; opens launcher.ps1
+launcher.ps1         readiness-check window with Run / Stop buttons
 ```
 
 ```bash

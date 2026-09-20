@@ -6,6 +6,7 @@ import { join } from 'node:path';
 
 process.env.STATE_DIR = await mkdtemp(join(tmpdir(), 'hunt-probe-'));
 process.env.LOG_LEVEL = 'error';
+process.env.SIGHTINGS_FILE = join(process.env.STATE_DIR, 'sightings.csv');
 
 const { RobloxClient } = await import('../src/robloxClient.js');
 const { Watcher } = await import('../src/watcher.js');
