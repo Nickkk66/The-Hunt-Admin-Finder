@@ -58,8 +58,10 @@ export function buildHitEmbed(hit, { color = 0xc0c0c0, itemName = 'the item' } =
     { name: 'Status', value: hit.statusText, inline: true },
   ];
 
+  // Long enough to say who they are, short enough not to bury the join link.
   if (hit.note) {
-    fields.push({ name: 'Why they are on the list', value: String(hit.note).slice(0, 1024), inline: false });
+    const note = String(hit.note).trim();
+    fields.push({ name: 'Who', value: note.length > 180 ? `${note.slice(0, 177)}...` : note, inline: false });
   }
 
   if (hit.confidence === 'probed') {
@@ -83,16 +85,15 @@ export function buildHitEmbed(hit, { color = 0xc0c0c0, itemName = 'the item' } =
   }
 
   if (hit.gameId && hit.placeId) {
+    // Discord renders a fenced block on its own lines; inline backticks in the
+    // same field came out as a run-on wall of text.
     fields.push({
-      name: 'Join this exact server',
+      name: 'Join their exact server',
       value:
-        '```' +
-        `Roblox.GameLauncher.joinGameInstance(${hit.placeId}, "${hit.gameId}")` +
-        '```\n' +
-        `Paste that in the browser console on [the game page](https://www.roblox.com/games/${hit.placeId}), ` +
-        'or use the deep link `' +
-        `roblox://experiences/start?placeId=${hit.placeId}&gameInstanceId=${hit.gameId}` +
-        '`',
+        `Open [the game page](https://www.roblox.com/games/${hit.placeId}), press F12, paste this:\n` +
+        '```js\n' +
+        `Roblox.GameLauncher.joinGameInstance(${hit.placeId}, "${hit.gameId}")\n` +
+        '```',
       inline: false,
     });
   } else if (hit.placeId) {
@@ -108,9 +109,9 @@ export function buildHitEmbed(hit, { color = 0xc0c0c0, itemName = 'the item' } =
     description: `Go join them to earn **${itemName}**.`,
     color,
     fields,
-    thumbnail: {
-      url: `https://www.roblox.com/headshot-thumbnail/image?userId=${hit.userId}&width=150&height=150&format=png`,
-    },
+    // No avatar url beats a dead one: Discord leaves a blank gap for an image
+    // it cannot fetch, which is what the old headshot-thumbnail endpoint gives.
+    ...(hit.avatarUrl ? { thumbnail: { url: hit.avatarUrl } } : {}),
     footer: {
       text: hit.rankName ? `${hit.groupName ?? 'group'} - rank: ${hit.rankName}` : (hit.groupName ?? 'watch list'),
     },

@@ -128,6 +128,10 @@ function makeNetwork({ usernamesFail = false } = {}) {
       calls.presenceIds.push(...body.userIds);
       return json({ userPresences: body.userIds.map(presenceFor) });
     }
+        if (u.includes('avatar-headshot')) {
+      const ids = new URL(u).searchParams.get('userIds').split(',').map(Number);
+      return json({ data: ids.map((id) => ({ targetId: id, state: 'Completed', imageUrl: `https://tr.rbxcdn.com/${id}.png` })) });
+    }
     if (u.includes('games?universeIds=')) {
       return json({ data: [{ id: TARGET_UNIVERSE, name: 'The Hunt', rootPlaceId: TARGET_PLACE }] });
     }
@@ -168,7 +172,9 @@ test('resolves a watch list, skips names Roblox does not know, and pings the hit
   assert.deepEqual(hits.map((h) => h.userId), [2204301]);
   assert.equal(hits[0].note, "Zarc's alt", 'the note rides along to Discord');
   assert.equal(calls.webhooks.length, 1);
-  assert.match(calls.webhooks[0].embeds[0].footer.text, /watch list/i);
+  const embed = calls.webhooks[0].embeds[0];
+  assert.match(embed.footer.text, /watch list/i);
+  assert.equal(embed.thumbnail.url, 'https://tr.rbxcdn.com/2204301.png', 'the avatar comes from the thumbnails api');
   assert.ok(!calls.presenceIds.includes(999));
 });
 

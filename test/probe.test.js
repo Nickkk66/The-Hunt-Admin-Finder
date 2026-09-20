@@ -77,6 +77,10 @@ function makeNetwork() {
       revealed.delete(id);
       return json({ success: true });
     }
+        if (u.includes('avatar-headshot')) {
+      const ids = new URL(u).searchParams.get('userIds').split(',').map(Number);
+      return json({ data: ids.map((id) => ({ targetId: id, state: 'Completed', imageUrl: `https://tr.rbxcdn.com/${id}.png` })) });
+    }
     if (u.includes('/universe')) return json({ universeId: TARGET_UNIVERSE });
     if (u.includes('games?universeIds=')) return json({ data: [{ id: TARGET_UNIVERSE, name: 'The Hunt', rootPlaceId: TARGET_PLACE }] });
     throw new Error(`unstubbed: ${u}`);

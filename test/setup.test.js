@@ -45,12 +45,31 @@ test('never clobbers a filled-in config', async (t) => {
   const dir = await scaffold();
   t.after(() => rm(dir, { recursive: true, force: true }));
 
-  await writeFile(join(dir, '.env'), 'ROBLOX_COOKIE=mine\n');
-  await writeFile(join(dir, 'watchers.json'), '{"watchers":[]}');
+  await writeFile(join(dir, '.env'), 'ROBLOX_COOKIE=mine\nDISCORD_WEBHOOK_SILVER_WINGS=hook\n');
+  await writeFile(join(dir, 'watchers.json'), '{"watchers":[{"name":"silver-wings"}]}');
 
   const { stdout } = await run(process.execPath, [SETUP], { cwd: dir });
   assert.match(stdout, /kept {4}\.env/);
-  assert.equal(await readFile(join(dir, '.env'), 'utf8'), 'ROBLOX_COOKIE=mine\n');
-  assert.equal(await readFile(join(dir, 'watchers.json'), 'utf8'), '{"watchers":[]}');
-  assert.doesNotMatch(stdout, /Still blank/);
+  assert.match(await readFile(join(dir, '.env'), 'utf8'), /ROBLOX_COOKIE=mine/);
+  assert.match(await readFile(join(dir, '.env'), 'utf8'), /DISCORD_WEBHOOK_SILVER_WINGS=hook/);
+  assert.equal(await readFile(join(dir, 'watchers.json'), 'utf8'), '{"watchers":[{"name":"silver-wings"}]}');
+});
+
+test('tops up an .env written before a watcher existed', async (t) => {
+  const dir = await scaffold();
+  t.after(() => rm(dir, { recursive: true, force: true }));
+
+  // What someone who set this up before Obsidian shipped actually has on disk.
+  await writeFile(join(dir, '.env'), 'ROBLOX_COOKIE=mine\nDISCORD_WEBHOOK_SILVER_WINGS=hook\n');
+  await writeFile(join(dir, 'watchers.json'), '{"watchers":[{"name":"silver-wings"}]}');
+
+  const { stdout } = await run(process.execPath, [SETUP], { cwd: dir });
+  const env = await readFile(join(dir, '.env'), 'utf8');
+
+  assert.match(stdout, /DISCORD_WEBHOOK_OBSIDIAN_WINGS/, 'says what it added');
+  assert.match(env, /^DISCORD_WEBHOOK_OBSIDIAN_WINGS=$/m, 'appends the missing key, blank');
+  assert.match(env, /DISCORD_WEBHOOK_SILVER_WINGS=hook/, 'leaves the filled-in one alone');
+  assert.equal(env.match(/ROBLOX_COOKIE=/g).length, 1, 'does not duplicate a key it already has');
+
+  assert.match(stdout, /has no: .*obsidian-wings/, 'names the watcher the config is missing');
 });

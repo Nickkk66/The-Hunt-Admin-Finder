@@ -27,7 +27,7 @@
   "watchers": [
     {
       "name": "silver-wings",
-      "enabled": true,
+      "enabled": false,
       "itemName": "Silver Wings",
       "embedColor": 12632256,
       "groupId": 1200769,
@@ -45,7 +45,7 @@
     },
     {
       "name": "golden-wings",
-      "enabled": true,
+      "enabled": false,
       "itemName": "Golden Wings",
       "embedColor": 16766720,
       "groupId": 4199740,

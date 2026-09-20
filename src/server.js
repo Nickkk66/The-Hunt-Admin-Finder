@@ -81,6 +81,10 @@ export function startServer({ port = 8787, host = '127.0.0.1' } = {}) {
     const me = await runtime.client.whoami();
     log.info(`authenticated as ${me?.name ?? 'unknown'} (${me?.id ?? '?'})`);
 
+    const muted = enabled.filter((w) => !w.webhookUrl);
+    for (const w of muted) log.error(`"${w.name}" has no webhook url and will tell you nothing when it finds someone`);
+    if (muted.length === enabled.length) throw new Error('every watcher is missing its webhook url; nothing would reach you');
+
     runtime.watchers = enabled.map((w) => new Watcher(runtime.client, w));
     runtime.running = true;
     runtime.startedAt = Date.now();

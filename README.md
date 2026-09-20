@@ -4,13 +4,24 @@ Watches a Roblox group rank - or a named list of specific people - checks everyo
 presence on a loop, and pings a Discord webhook the moment one of them is in **The Hunt**
 so you can hop in and get the in-game item.
 
-Three watchers ship in the config:
+Three watchers ship in the config. **Only `obsidian-wings` is on by default**; the other two
+are `enabled: false`, so they cost nothing and ping nothing until you switch them on.
 
-| Watcher          | Watches                                                        | Item          |
-| ---------------- | -------------------------------------------------------------- | ------------- |
-| `silver-wings`   | group [1200769](https://www.roblox.com/share/g/1200769), rank `Team Member` | Silver Wings  |
-| `golden-wings`   | group [4199740](https://www.roblox.com/share/g/4199740), rank `Video Star`  | Golden Wings  |
-| `obsidian-wings` | a named list of people (see below)                              | Obsidian Wings |
+| Watcher          | Watches                                                                     | Item           | Default |
+| ---------------- | --------------------------------------------------------------------------- | -------------- | ------- |
+| `obsidian-wings` | a named list of people (see below)                                          | Obsidian Wings | **on**  |
+| `silver-wings`   | group [1200769](https://www.roblox.com/share/g/1200769), rank `Team Member` | Silver Wings   | off     |
+| `golden-wings`   | group [4199740](https://www.roblox.com/share/g/4199740), rank `Video Star`  | Golden Wings   | off     |
+
+Flip `enabled` in `watchers.json` to change that, or override it for one run:
+
+```bash
+npm start -- --only obsidian-wings          # just this one, whatever the config says
+npm start -- --only silver-wings,golden-wings
+```
+
+`--only` ignores `enabled`, so you can take a parked watcher for a spin without editing the
+config back and forth.
 
 They all run in one process off the same config file. Adding a fourth is a new entry in
 `watchers.json`, not new code.
@@ -176,6 +187,14 @@ npm run setup                 # creates .env and watchers.json from the examples
 `npm run setup` never overwrites a file you already have, so re-running it is safe. It
 prints which values in `.env` are still blank. Fill those in, then:
 
+**Re-run it after pulling.** Both `.env` and `watchers.json` are gitignored and yours, so a
+watcher added to the repo after you set up is simply not in your copy, and its
+`${DISCORD_WEBHOOK_...}` expands to an empty string - the watcher sweeps fine and drops every
+alert at the last step, silently. `npm run setup` now diffs both files against the examples,
+appends any missing (blank) env keys, and names any watcher your config doesn't have. The
+watcher process also refuses to start quietly with a missing webhook: it logs the exact env var
+to set, and exits if *every* selected watcher is muted.
+
 ```bash
 npm run ui                    # opens http://127.0.0.1:8787 in your browser
 ```
@@ -220,7 +239,7 @@ npm run resolve "https://www.roblox.com/users/2204301/profile"
 ## Running it
 
 ```bash
-npm start                 # every enabled watcher, forever
+npm start                 # every enabled watcher, forever (obsidian-wings only, by default)
 npm run once              # one sweep, then exit (good for a first smoke test)
 npm start -- --only silver-wings
 npm start -- --only obsidian-wings
@@ -305,7 +324,7 @@ Probing is `enabled: true` for both watchers in the example config. Set it to
 | `presenceBatchSize`   | Users per presence call, max 100. 50 is the safe default.                      |
 | `renotifyMinutes`     | Cooldown before the same user/server can ping again.                           |
 | `notifyOnUnknownGame` | Ping on "in a game, no idea which". Noisy, and skips probing. Default `false`. |
-| `enabled`             | Set `false` to park a watcher without deleting it.                             |
+| `enabled`             | Set `false` to park a watcher without deleting it. `--only` overrides it.      |
 
 Probe settings (`probe`):
 
@@ -336,6 +355,7 @@ src/follows.js       follow / unfollow / following-exists
 src/matching.js      "is this person in the target game" (pure, unit tested)
 src/watcher.js       the loop: scrape -> poll -> probe -> dedupe -> notify -> unfollow
 src/discord.js       webhook embeds
+src/thumbnails.js    avatar headshots for the embeds
 src/resolve.js       share link -> ids helper
 src/server.js        localhost dashboard + start/stop api
 src/setup.js         one-command local scaffolding (npm run setup)

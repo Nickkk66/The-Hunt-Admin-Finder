@@ -1,6 +1,7 @@
 import { createLogger } from './log.js';
 import { fetchRoleMembers, findRole, getGroup, getRoles } from './groups.js';
 import { resolveUserList } from './users.js';
+import { fetchHeadshots } from './thumbnails.js';
 import { PresenceType, fetchPresences, presenceName } from './presence.js';
 import { universeIdForPlace, getUniverseInfo } from './universes.js';
 import { matchesTarget, hitKey, shouldNotify, isLocationHidden } from './matching.js';
@@ -557,8 +558,13 @@ export class Watcher {
       return [];
     }
 
+    // One call for the whole batch, and only for people we are about to post.
+    const avatars = await fetchHeadshots(this.client, fresh.map((h) => h.userId), { logger: this.log });
     const embeds = fresh.map((h) =>
-      buildHitEmbed(h, { color: this.config.embedColor ?? 0xc0c0c0, itemName: this.config.itemName ?? 'the item' }),
+      buildHitEmbed(
+        { ...h, avatarUrl: avatars.get(h.userId) ?? null },
+        { color: this.config.embedColor ?? 0xc0c0c0, itemName: this.config.itemName ?? 'the item' },
+      ),
     );
     const who = this.roleName ? `${this.roleName}s` : 'people from the watch list';
     const content =

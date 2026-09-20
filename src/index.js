@@ -4,6 +4,10 @@ import { RobloxClient } from './robloxClient.js';
 import { Watcher } from './watcher.js';
 import { log } from './log.js';
 
+/** Mirrors how the config builder names webhook env vars. */
+const envKeyFor = (name) =>
+  'DISCORD_WEBHOOK_' + String(name || 'watcher').toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_|_$/g, '');
+
 function parseArgs(argv) {
   const args = { once: false, refresh: false, only: null, config: 'watchers.json', unfollowAll: false };
   for (let i = 0; i < argv.length; i += 1) {
@@ -11,7 +15,7 @@ function parseArgs(argv) {
     if (a === '--once') args.once = true;
     else if (a === '--refresh') args.refresh = true;
     else if (a === '--unfollow-all') args.unfollowAll = true;
-    else if (a === '--only') args.only = argv[++i];
+    else if (a === '--only') args.only = String(argv[++i] ?? '').split(',').map((n) => n.trim()).filter(Boolean);
     else if (a === '--config') args.config = argv[++i];
     else if (a === '--help' || a === '-h') args.help = true;
   }
@@ -28,7 +32,8 @@ the-hunt-admin-finder
 Flags:
   --once            one sweep, then exit
   --refresh         re-scrape the group member list even if the cache is warm
-  --only <name>     run a single watcher by name (e.g. silver-wings)
+  --only <names>    run these watchers by name, comma separated, even if
+                    they are disabled in the config (e.g. --only obsidian-wings)
   --config <path>   config file (default watchers.json)
   --unfollow-all    undo every follow the probe made, then exit
 `;
@@ -62,10 +67,34 @@ async function main() {
   });
   if (me) log.info(`authenticated as ${me.name} (${me.id})`);
 
-  let selected = config.watchers.filter((w) => w.enabled !== false);
-  if (args.only) selected = selected.filter((w) => w.name === args.only);
+  // --only overrides `enabled`, so you can run a parked watcher for one sweep
+  // without editing the config back and forth.
+  let selected = args.only
+    ? config.watchers.filter((w) => args.only.includes(w.name))
+    : config.watchers.filter((w) => w.enabled !== false);
   if (!selected.length) {
-    log.error(args.only ? `no enabled watcher named "${args.only}"` : 'no enabled watchers in config');
+    log.error(
+      args.only
+        ? `no watcher named ${args.only.map((n) => `"${n}"`).join(' or ')}. Config has: ${config.watchers.map((w) => w.name).join(', ')}`
+        : 'no enabled watchers in config',
+    );
+    process.exitCode = 1;
+    return;
+  }
+
+  // An unset ${DISCORD_WEBHOOK_...} expands to an empty string, so a watcher
+  // with a stale .env sweeps happily and drops every alert at the last step.
+  // That failure is invisible until you notice you were never pinged, so say it
+  // at startup instead of once per missed hit.
+  const muted = selected.filter((w) => !w.webhookUrl);
+  for (const w of muted) {
+    log.error(
+      `"${w.name}" has no webhook url, so it will find people and tell you nothing. ` +
+        `Set ${envKeyFor(w.name)} in .env (it is in .env.example).`,
+    );
+  }
+  if (muted.length === selected.length) {
+    log.error('every selected watcher is muted; fix .env before this is worth running');
     process.exitCode = 1;
     return;
   }
