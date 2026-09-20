@@ -181,6 +181,19 @@ test('a dead username lookup does not take the ids down with it', async () => {
   assert.deepEqual((await w.tick()).map((h) => h.userId), [2204301]);
 });
 
+test('the same person twice is watched once', async () => {
+  const calls = makeNetwork();
+  // Once by id, once by the name that resolves to that same id.
+  const w = makeWatcher([{ userId: 2672900117, note: 'by id' }, 'WaffleTrades', 2672900117]);
+
+  await w.init();
+  assert.deepEqual(w.members.map((m) => m.userId), [2672900117]);
+  assert.equal(w.members[0].note, 'by id', 'the first entry\'s note survives');
+
+  await w.tick();
+  assert.deepEqual(calls.presenceIds, [2672900117], 'a duplicate must not cost a presence slot');
+});
+
 test('a live rename wins over the name in the config', async () => {
   makeNetwork();
   // 2204301 is "Fangwing" upstream; the config still calls them by an old name.

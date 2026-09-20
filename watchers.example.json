@@ -110,6 +110,31 @@
           "username": "Neatzo",
           "enabled": true,
           "note": "Running 'Launching ALL 3 Crowns & Wings 24/7'. Id supplied by hand and not confirmed against the API - check the profile before you trust an alert."
+        },
+        {
+          "userId": null,
+          "username": "brandonisbulk",
+          "note": "Added by name, no id confirmed. The first run resolves it and logs the id - check that id is the person you meant before you act on an alert."
+        },
+        {
+          "userId": null,
+          "username": "slalwartwarden",
+          "note": "Added by name, no id confirmed. The first run resolves it and logs the id - check that id is the person you meant before you act on an alert. Spelling looks off; if Roblox says no such account, that is why. Fix the name or put the numeric id in. Possibly \"stalwartwarden\"."
+        },
+        {
+          "userId": null,
+          "username": "arcisbored",
+          "note": "Added by name, no id confirmed. The first run resolves it and logs the id - check that id is the person you meant before you act on an alert."
+        },
+        {
+          "userId": null,
+          "username": "azaph3D",
+          "note": "Added by name, no id confirmed. The first run resolves it and logs the id - check that id is the person you meant before you act on an alert."
+        },
+        {
+          "userId": null,
+          "username": "feetingvortex",
+          "note": "Added by name, no id confirmed. The first run resolves it and logs the id - check that id is the person you meant before you act on an alert. Spelling looks off; if Roblox says no such account, that is why. Fix the name or put the numeric id in. Possibly \"fleetingvortex\"."
         }
       ],
       "webhookUrl": "${DISCORD_WEBHOOK_OBSIDIAN_WINGS}",

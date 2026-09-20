@@ -101,10 +101,24 @@ export async function resolveUserList(client, entries, { logger = createLogger('
     }
   }
 
-  return list.map((u) => ({
-    userId: u.userId,
-    username: u.username ?? `user ${u.userId}`,
-    displayName: u.displayName ?? u.username ?? `user ${u.userId}`,
-    note: u.note ?? null,
-  }));
+  // The same person can land in the list twice - once by id, once by a name
+  // that resolves to it, or just pasted twice. Left in, every duplicate costs a
+  // presence slot on every sweep forever, so collapse them here.
+  const seen = new Map();
+  for (const u of list) {
+    const existing = seen.get(u.userId);
+    if (!existing) {
+      seen.set(u.userId, {
+        userId: u.userId,
+        username: u.username ?? `user ${u.userId}`,
+        displayName: u.displayName ?? u.username ?? `user ${u.userId}`,
+        note: u.note ?? null,
+      });
+      continue;
+    }
+    logger.warn(`${existing.username} (${u.userId}) is in the list more than once; keeping one copy`);
+    existing.note ??= u.note ?? null;
+  }
+
+  return [...seen.values()];
 }

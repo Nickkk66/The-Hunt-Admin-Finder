@@ -52,6 +52,21 @@ The list that ships in `watchers.example.json`:
 | Neatzo       | 1577246414 | watched (id entered by hand)                        |
 | Kirbyyum     | none found | **parked** (`enabled: false`)                       |
 
+Plus five added by name only, with no id at all. Roblox is asked for the id at startup:
+
+| Person         | Note                                          |
+| -------------- | --------------------------------------------- |
+| brandonisbulk  |                                               |
+| slalwartwarden | spelling may be `stalwartwarden`              |
+| arcisbored     |                                               |
+| azaph3D        |                                               |
+| feetingvortex  | spelling may be `fleetingvortex`              |
+
+A name that Roblox doesn't know is logged and skipped, so a typo costs you that one person, not
+the run. A name that *does* resolve is the thing to check: usernames get freed up and
+re-registered, so the account holding the name today is not guaranteed to be the streamer you
+meant. Resolve them once and paste the ids in.
+
 None of those ids came out of the Roblox API - they came off a stream round-up or were typed in
 by hand, and nothing in this repo has checked them against a live account. Worst case you watch
 a wrong-but-real account and simply never get a ping from it, so spot-check them the first time
