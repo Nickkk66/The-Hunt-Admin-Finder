@@ -1,18 +1,73 @@
 # The-Hunt-Admin-Finder
 
-Watches a Roblox group rank, checks every member's presence on a loop, and pings a
-Discord webhook the moment one of them is in **The Hunt** so you can hop in and get
-the in-game item.
+Watches a Roblox group rank - or a named list of specific people - checks everyone's
+presence on a loop, and pings a Discord webhook the moment one of them is in **The Hunt**
+so you can hop in and get the in-game item.
 
-Two watchers ship in the config:
+Three watchers ship in the config:
 
-| Watcher        | Group                                             | Rank          | Item         |
-| -------------- | ------------------------------------------------- | ------------- | ------------ |
-| `silver-wings` | [1200769](https://www.roblox.com/share/g/1200769) | `Team Member` | Silver Wings |
-| `golden-wings` | [4199740](https://www.roblox.com/share/g/4199740) | `Video Star`  | Golden Wings |
+| Watcher          | Watches                                                        | Item          |
+| ---------------- | -------------------------------------------------------------- | ------------- |
+| `silver-wings`   | group [1200769](https://www.roblox.com/share/g/1200769), rank `Team Member` | Silver Wings  |
+| `golden-wings`   | group [4199740](https://www.roblox.com/share/g/4199740), rank `Video Star`  | Golden Wings  |
+| `obsidian-wings` | a named list of people (see below)                              | Obsidian Wings |
 
-Both run in one process off the same config file. Adding a third is a new entry in
+They all run in one process off the same config file. Adding a fourth is a new entry in
 `watchers.json`, not new code.
+
+## Obsidian wings, and watch lists in general
+
+Obsidian isn't handed out through a group rank, it's handed out by whoever is running a
+launcher server. So a watcher can now watch **a list of specific people** instead of a rank:
+give it `users` instead of `groupId` and `rank`, and everything downstream (presence sweeps,
+follow probing, dedupe, Discord alerts) works exactly the same.
+
+```json
+{
+  "name": "obsidian-wings",
+  "itemName": "Obsidian Wings",
+  "users": [
+    { "userId": 2204301, "username": "Fangwing", "note": "Zarc's alt account" },
+    { "userId": null, "username": "SomeoneUnverified", "enabled": false, "note": "id not confirmed" }
+  ],
+  "webhookUrl": "${DISCORD_WEBHOOK_OBSIDIAN_WINGS}",
+  "target": { "universeIds": [], "placeIds": [], "nameMatch": "The Hunt" }
+}
+```
+
+Each entry can be a bare id (`2204301`), a username (`"Fangwing"`), a profile link, or an
+object with `userId`, `username`, `note` and `enabled`. The `note` shows up in the Discord
+embed, so you know why that person is on the list when the ping lands at 3am.
+
+The list that ships in `watchers.example.json`:
+
+| Person                | Roblox id  | Status                                                    |
+| --------------------- | ---------- | --------------------------------------------------------- |
+| WaffleTrades          | 2672900117 | watched                                                   |
+| WeirdBlox             | 431900130  | watched                                                   |
+| Zarcyn                | 65141229   | watched                                                   |
+| Fangwing              | 2204301    | watched (Zarc's alt, used for the launcher streams)       |
+| javie12               | 38805399   | watched                                                   |
+| 0kkAleks              | unknown    | **parked** (`enabled: false`)                              |
+| Kirbyyum              | unknown    | **parked** (`enabled: false`)                              |
+| Neatzo                | unknown    | **parked** (`enabled: false`)                              |
+
+Those ids came off a stream round-up, not out of the Roblox API, and nothing in this repo has
+checked them against a live account. The five that are on carry an id, so worst case you watch
+a wrong-but-real account and get no pings. The three parked ones had no confirmed profile at
+all, and Roblox re-issues freed-up usernames, so resolving them by name could park you on a
+stranger. Confirm the id and flip `enabled` yourself:
+
+```bash
+npm run resolve "0kkAleks"                                  # username -> id
+npm run resolve "https://www.roblox.com/users/2204301/profile"   # link -> id
+```
+
+That prints the profile link next to every id it finds. Open it, check it's the person whose
+stream you were watching, then paste the id into `watchers.json`.
+
+A watcher is one thing or the other: `users` **or** `groupId`/`rank`. Setting both is a config
+error rather than a silent pick.
 
 ## Read this before you set it up
 
@@ -36,7 +91,8 @@ This only works as well as Roblox lets it, and the gaps are real:
 
 ## Web interface
 
-There's a single page that works two ways.
+There's a single page that works two ways. Each watcher card has a **Watch** dropdown:
+a group rank, or a named list of people (one per line, `#` parks a line).
 
 **On GitHub Pages** (`https://nickkk66.github.io/The-Hunt-Admin-Finder/`) it is a config
 builder. You fill in group ids, ranks, webhooks and probe settings, and it generates your
@@ -128,13 +184,21 @@ npm run resolve "https://www.roblox.com/share/g/1200769"
 npm run resolve "https://www.roblox.com/share/g/4199740"
 ```
 
+And it turns a username or a profile link into the numeric id a watch list wants:
+
+```bash
+npm run resolve "Fangwing"
+npm run resolve "https://www.roblox.com/users/2204301/profile"
+```
+
 ## Running it
 
 ```bash
-npm start                 # both watchers, forever
+npm start                 # every enabled watcher, forever
 npm run once              # one sweep, then exit (good for a first smoke test)
 npm start -- --only silver-wings
-npm start -- --refresh    # force a re-scrape of the member list
+npm start -- --only obsidian-wings
+npm start -- --refresh    # force a re-scrape of the member list / re-resolve of the watch list
 npm start -- --unfollow-all   # undo every follow the probe made, then exit
 npm run ui                    # the web dashboard on localhost
 LOG_LEVEL=debug npm start
@@ -142,7 +206,8 @@ LOG_LEVEL=debug npm start
 
 First start scrapes the whole rank (27 pages for 2.7k people) and caches it in
 `.state/<watcher>.json`. After that it reuses the cache for `memberCacheHours`
-(default 6) so each sweep is just the presence calls.
+(default 6) so each sweep is just the presence calls. A watch list is cached the same
+way, and re-resolved whenever you edit the list.
 
 Once notified about a user in a given server, it won't ping again for
 `renotifyMinutes` (default 30). If they change servers, that's a new ping.
@@ -200,8 +265,10 @@ Probing is `enabled: true` for both watchers in the example config. Set it to
 | Key                   | What it does                                                                 |
 | --------------------- | ---------------------------------------------------------------------------- |
 | `name`                | Used for the state file and `--only`. Keep it unique.                         |
-| `groupId`             | Numeric group id.                                                             |
+| `groupId`             | Numeric group id. Leave it out if you're using `users`.                       |
 | `rank`                | Rank name (case/space-insensitive) or the numeric rank value.                 |
+| `users`               | A list of specific people to watch *instead of* a group rank. See above.      |
+| `sourceLabel`         | What to call the list in logs and the Discord footer. Optional.               |
 | `itemName`            | Shown in the Discord message.                                                 |
 | `webhookUrl`          | Discord webhook. `${ENV_VAR}` is expanded from `.env`.                        |
 | `target.universeIds`  | Exact match, most reliable. Fill via `npm run resolve`.                        |
@@ -237,6 +304,7 @@ Probe settings (`probe`):
 src/robloxClient.js  auth, CSRF, captcha detection, 429/5xx backoff
 src/queue.js         request pacing
 src/groups.js        rank lookup + member paging
+src/users.js         watch lists: username -> id, id -> display name
 src/presence.js      batched presence calls
 src/follows.js       follow / unfollow / following-exists
 src/matching.js      "is this person in the target game" (pure, unit tested)
@@ -255,5 +323,6 @@ npm test
 ```
 
 The test suite fakes the Roblox API end to end, including the probe paths (reveal,
-no-reveal, pre-existing follow, dry run, captcha pause). It has never been run
+no-reveal, pre-existing follow, dry run, captcha pause) and the watch-list paths
+(name resolution, unknown names, a dead username lookup, renames). It has never been run
 against the live API from this repo's CI — first real run is your smoke test.

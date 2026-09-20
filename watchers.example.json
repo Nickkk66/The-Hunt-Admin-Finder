@@ -60,6 +60,68 @@
       "probe": {
         "enabled": true
       }
+    },
+    {
+      "name": "obsidian-wings",
+      "enabled": true,
+      "itemName": "Obsidian Wings",
+      "embedColor": 4864886,
+      "sourceLabel": "Obsidian launcher list",
+      "users": [
+        {
+          "userId": 2672900117,
+          "username": "WaffleTrades",
+          "note": "Says he teamed up with Roblox developers and admins in one server and is launching all three wings."
+        },
+        {
+          "userId": 431900130,
+          "username": "WeirdBlox",
+          "note": "All three wings, Obsidian explicitly named as coming from a developer."
+        },
+        {
+          "userId": 65141229,
+          "username": "Zarcyn",
+          "note": "Names Obsidian, Gossamer and Aureate. Main account."
+        },
+        {
+          "userId": 2204301,
+          "username": "Fangwing",
+          "note": "Zarc's alternate account, used for the launcher streams."
+        },
+        {
+          "userId": 38805399,
+          "username": "javie12",
+          "note": "Stream tracker has him running a 24/7 'launching all 3 items' stream."
+        },
+        {
+          "userId": null,
+          "username": "0kkAleks",
+          "enabled": false,
+          "note": "Stream is real ('LAUNCHING ALL 3 Reignment with LOW QUEUE') but the Roblox profile behind it is unverified. Put the numeric userId from his own stream here before enabling - a same-name account is probably someone else."
+        },
+        {
+          "userId": null,
+          "username": "Kirbyyum",
+          "enabled": false,
+          "note": "Advertises all 3 wings in a 24/7 Hunt stream, Roblox profile unverified. Get the id from the join instructions in the stream itself."
+        },
+        {
+          "userId": null,
+          "username": "Neatzo",
+          "enabled": false,
+          "note": "Running 'Launching ALL 3 Crowns & Wings 24/7', Roblox profile unverified. Same deal: confirm the id from the stream before enabling."
+        }
+      ],
+      "webhookUrl": "${DISCORD_WEBHOOK_OBSIDIAN_WINGS}",
+      "webhookUsername": "Obsidian Wings Watcher",
+      "target": {
+        "universeIds": [],
+        "placeIds": [],
+        "nameMatch": "The Hunt"
+      },
+      "probe": {
+        "enabled": true
+      }
     }
   ]
 }

@@ -71,6 +71,15 @@ test('parses the links from the brief', () => {
   assert.deepEqual(parseShareInput('https://www.roblox.com/games/920587237/Adopt-Me'), { kind: 'place', placeId: 920587237 });
 });
 
+test('parses the people a watch list is built from', () => {
+  assert.deepEqual(parseShareInput('https://www.roblox.com/users/2204301/profile'), { kind: 'user', userId: 2204301 });
+  assert.deepEqual(parseShareInput('Fangwing'), { kind: 'username', username: 'Fangwing' });
+  assert.deepEqual(parseShareInput('@javie12'), { kind: 'username', username: 'javie12' });
+  // A bare number stays ambiguous: it is far more likely to be a group or place.
+  assert.deepEqual(parseShareInput('1200769'), { kind: 'id', id: 1200769 });
+  assert.equal(parseShareInput('not a username at all').kind, 'unknown');
+});
+
 test('digs ids out of a nested share payload', () => {
   const payload = { experienceInviteData: { universeId: '123', rootPlaceId: '456', inviterId: '789' } };
   assert.deepEqual(extractIdsFromShareResponse(payload), { placeId: 456, universeId: 123, inviterId: 789 });

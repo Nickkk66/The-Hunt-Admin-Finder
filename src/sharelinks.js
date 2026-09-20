@@ -16,6 +16,10 @@ export function parseShareInput(input) {
   const place = raw.match(/roblox\.com\/games\/(\d+)/i);
   if (place) return { kind: 'place', placeId: Number(place[1]) };
 
+  // https://www.roblox.com/users/2204301/profile  -> user
+  const user = raw.match(/roblox\.com\/users\/(\d+)/i);
+  if (user) return { kind: 'user', userId: Number(user[1]) };
+
   // https://www.roblox.com/share?code=<hex>&type=ExperienceDetails
   try {
     const url = new URL(raw);
@@ -29,6 +33,12 @@ export function parseShareInput(input) {
 
   if (/^[0-9a-f]{20,}$/i.test(raw)) return { kind: 'share', code: raw, type: 'ExperienceDetails' };
   if (/^\d+$/.test(raw)) return { kind: 'id', id: Number(raw) };
+
+  // Anything left that could be a Roblox username is treated as one. `@name` is
+  // unambiguous; a bare word gets the same treatment because that is what you
+  // have when someone is only known to you by the name on their stream.
+  const username = raw.match(/^@?([A-Za-z0-9_]{3,20})$/);
+  if (username) return { kind: 'username', username: username[1] };
 
   return { kind: 'unknown', raw };
 }

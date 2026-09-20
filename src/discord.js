@@ -58,6 +58,10 @@ export function buildHitEmbed(hit, { color = 0xc0c0c0, itemName = 'the item' } =
     { name: 'Status', value: hit.statusText, inline: true },
   ];
 
+  if (hit.note) {
+    fields.push({ name: 'Why they are on the list', value: String(hit.note).slice(0, 1024), inline: false });
+  }
+
   if (hit.confidence === 'probed') {
     fields.push({
       name: 'How we found them',
@@ -107,7 +111,9 @@ export function buildHitEmbed(hit, { color = 0xc0c0c0, itemName = 'the item' } =
     thumbnail: {
       url: `https://www.roblox.com/headshot-thumbnail/image?userId=${hit.userId}&width=150&height=150&format=png`,
     },
-    footer: { text: `${hit.groupName ?? 'group'} - rank: ${hit.rankName ?? '?'}` },
+    footer: {
+      text: hit.rankName ? `${hit.groupName ?? 'group'} - rank: ${hit.rankName}` : (hit.groupName ?? 'watch list'),
+    },
     timestamp: new Date().toISOString(),
   };
 }
