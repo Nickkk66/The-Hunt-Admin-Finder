@@ -4,7 +4,21 @@ import { createLogger } from './log.js';
 const MAX_EMBEDS_PER_MESSAGE = 10;
 
 /** Posts embeds to a Discord webhook, chunked and 429-aware. */
-export async function sendEmbeds(webhookUrl, embeds, { content, username, logger = createLogger('discord') } = {}) {
+/**
+ * Turns the configured ping into Discord mention syntax. Accepts a bare user id,
+ * "role:<id>", "@here", "@everyone", or an already-formatted <@...> mention.
+ */
+export function mentionFor(ping) {
+  const p = String(ping ?? '').trim();
+  if (!p) return '';
+  if (/^\d{15,22}$/.test(p)) return `<@${p}>`;
+  const role = p.match(/^role:(\d{15,22})$/i);
+  if (role) return `<@&${role[1]}>`;
+  if (p === '@here' || p === '@everyone' || /^<@[!&]?\d+>$/.test(p)) return p;
+  return '';
+}
+
+export async function sendEmbeds(webhookUrl, embeds, { content, username, ping = false, logger = createLogger('discord') } = {}) {
   if (!webhookUrl) {
     logger.warn('no webhook url configured; skipping notification');
     return false;
@@ -15,6 +29,8 @@ export async function sendEmbeds(webhookUrl, embeds, { content, username, logger
     const payload = {
       username: username || 'The Hunt Watcher',
       embeds: chunk,
+      // Only let the message ping when we asked it to; player names can't sneak in an @everyone.
+      allowed_mentions: ping ? { parse: ['users', 'roles', 'everyone'] } : { parse: [] },
     };
     if (i === 0 && content) payload.content = content;
 
@@ -48,66 +64,73 @@ export async function sendEmbeds(webhookUrl, embeds, { content, username, logger
   return true;
 }
 
-export function buildHitEmbed(hit, { color = 0xc0c0c0, itemName = 'the item' } = {}) {
-  const fields = [
-    {
-      name: 'Profile',
-      value: `[${hit.username}](https://www.roblox.com/users/${hit.userId}/profile)`,
-      inline: true,
-    },
-    { name: 'Status', value: hit.statusText, inline: true },
-  ];
+const ITEM_EMOJI = [
+  [/gold/i, '🥇'],
+  [/silver/i, '🥈'],
+  [/bronze/i, '🥉'],
+];
 
+/**
+ * The badge that says at a glance which watcher fired. An explicit "emoji" in
+ * watchers.json wins; otherwise it is inferred from the item name.
+ */
+export function itemEmoji(itemName, explicit) {
+  const e = String(explicit ?? '').trim();
+  if (e) return e;
+  for (const [re, emoji] of ITEM_EMOJI) if (re.test(itemName ?? '')) return emoji;
+  return '🏅';
+}
+
+/** Web join link: opens the Roblox app straight into their server (Discord only links http/https). */
+export function joinUrl(placeId, gameId) {
+  const base = `https://www.roblox.com/games/start?placeId=${placeId}`;
+  return gameId ? `${base}&gameInstanceId=${gameId}` : base;
+}
+
+export function buildHitEmbed(hit, { color = 0xc0c0c0, itemName = 'the item', emoji = '' } = {}) {
+  const badge = emoji ? `${emoji} ` : '';
+  const profileUrl = `https://www.roblox.com/users/${hit.userId}/profile`;
+  const gameName = hit.gameName ?? (hit.placeId ? `place ${hit.placeId}` : 'the game');
+  const gameLink = hit.placeId ? `[${gameName}](https://www.roblox.com/games/${hit.placeId})` : `**${gameName}**`;
+  const join = hit.placeId ? joinUrl(hit.placeId, hit.gameId) : null;
+
+  const lines = [`Playing ${gameLink} · go get ${badge}**${itemName}**`];
+  if (join && !hit.gameId) {
+    lines.push('-# Their server is hidden, so this opens the game - look for them once you are in.');
+  }
   if (hit.confidence === 'probed') {
-    fields.push({
-      name: 'How we found them',
-      value:
-        'Their game was hidden, so the watcher followed them to see it. ' +
-        'Stay followed until you have joined - their joins are follower-only.',
-      inline: false,
-    });
-  } else if (hit.following) {
-    fields.push({ name: 'Note', value: 'You are currently following them (probe follow).', inline: false });
+    lines.push('-# Found by following them. Stay followed until you have joined.');
   }
 
-  if (hit.placeId) {
+  const fields = [];
+  if (hit.serverPlaying != null) {
+    const full = hit.serverMax != null && hit.serverPlaying >= hit.serverMax;
     fields.push({
-      name: 'Experience',
-      value: `[${hit.gameName ?? `place ${hit.placeId}`}](https://www.roblox.com/games/${hit.placeId})`,
+      name: 'Their server',
+      value: `**${hit.serverPlaying}/${hit.serverMax ?? '?'}**${full ? ' 🔴 FULL' : ''}`,
       inline: true,
     });
   }
-
-  if (hit.gameId && hit.placeId) {
-    fields.push({
-      name: 'Join this exact server',
-      value:
-        '```' +
-        `Roblox.GameLauncher.joinGameInstance(${hit.placeId}, "${hit.gameId}")` +
-        '```\n' +
-        `Paste that in the browser console on [the game page](https://www.roblox.com/games/${hit.placeId}), ` +
-        'or use the deep link `' +
-        `roblox://experiences/start?placeId=${hit.placeId}&gameInstanceId=${hit.gameId}` +
-        '`',
-      inline: false,
-    });
-  } else if (hit.placeId) {
-    fields.push({
-      name: 'Server',
-      value: 'Server id hidden by their privacy settings. Join the experience and look for them.',
-      inline: false,
-    });
+  if (hit.gamePlaying != null) {
+    fields.push({ name: 'Playing the game', value: `**${hit.gamePlaying.toLocaleString('en-US')}**`, inline: true });
   }
 
-  return {
-    title: `${hit.displayName} (@${hit.username}) is playing`,
-    description: `Go join them to earn **${itemName}**.`,
+  const embed = {
+    author: {
+      name: hit.displayName && hit.displayName !== hit.username ? `${hit.displayName} (@${hit.username})` : hit.username,
+      url: profileUrl,
+    },
+    title: join ? (hit.gameId ? '▶  Join their server' : '▶  Open the game') : undefined,
+    url: join ?? undefined,
+    description: lines.join('\n'),
     color,
     fields,
-    thumbnail: {
-      url: `https://www.roblox.com/headshot-thumbnail/image?userId=${hit.userId}&width=150&height=150&format=png`,
-    },
-    footer: { text: `${hit.groupName ?? 'group'} - rank: ${hit.rankName ?? '?'}` },
+    footer: { text: `${badge}${itemName} · ${hit.groupName ?? 'group'} · ${hit.rankName ?? '?'}` },
     timestamp: new Date().toISOString(),
   };
+  if (hit.avatarUrl) {
+    embed.author.icon_url = hit.avatarUrl;
+    embed.thumbnail = { url: hit.avatarUrl };
+  }
+  return embed;
 }

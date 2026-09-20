@@ -41,7 +41,7 @@ export class RobloxClient {
     maxConcurrent = 2,
     minIntervalMs = 250,
     timeoutMs = 20000,
-    maxRetries = 5,
+    maxRetries = 7,
     logger = createLogger('roblox'),
   } = {}) {
     this.cookie = (cookie || '').trim();
@@ -116,9 +116,13 @@ export class RobloxClient {
       if (res.status === 429 && attempt < this.maxRetries) {
         attempt += 1;
         const retryAfter = Number(res.headers.get('retry-after'));
+        // Presence answers every 429 with "retry-after: 5", and retrying on
+        // exactly 5s kept hitting the same limit until retries ran out and the
+        // whole sweep was lost. Treat the header as a floor and keep escalating.
+        const backoffMs = Math.min(60000, 5000 * 2 ** (attempt - 1));
         const waitMs = Number.isFinite(retryAfter) && retryAfter > 0
-          ? retryAfter * 1000
-          : Math.min(60000, 5000 * 2 ** (attempt - 1));
+          ? Math.max(retryAfter * 1000, backoffMs)
+          : backoffMs;
         this.log.warn(`429 from ${url}; backing off ${Math.round(waitMs / 1000)}s (attempt ${attempt}/${this.maxRetries})`);
         this.queue.pauseFor(waitMs);
         await sleep(waitMs);

@@ -8,6 +8,7 @@ import { RobloxClient } from './robloxClient.js';
 import { Watcher } from './watcher.js';
 import { sendEmbeds } from './discord.js';
 import { addSink, createLogger } from './log.js';
+import { loadFindings } from './findings.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PAGE = join(HERE, '..', 'docs', 'index.html');
@@ -132,6 +133,12 @@ export function startServer({ port = 8787, host = '127.0.0.1' } = {}) {
           error: runtime.error,
           watchers: runtime.watchers.map((w) => w.status()),
         });
+        return;
+      }
+
+      if (req.method === 'GET' && url.pathname === '/api/findings') {
+        const limit = Math.min(Number(url.searchParams.get('limit') ?? 100) || 100, 200);
+        json(res, 200, { findings: await loadFindings(limit) });
         return;
       }
 

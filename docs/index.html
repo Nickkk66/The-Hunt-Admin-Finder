@@ -259,7 +259,14 @@
       <button type="button" id="stop" disabled>Stop</button>
     </div>
   </div>
-  <div id="status-tables" style="margin-top:14px"></div>
+  <div class="spread" style="margin-top:18px">
+    <h3 style="margin:0">Found</h3>
+    <span class="sub">Everyone spotted this run, newest first. You do not need Discord for this.</span>
+  </div>
+  <div id="found" style="margin-top:8px"></div>
+
+  <h3 style="margin:18px 0 6px">Watchers</h3>
+  <div id="status-tables"></div>
   <h3 style="margin:16px 0 6px">Log</h3>
   <div id="logs"></div>
 </section>
@@ -606,7 +613,45 @@ async function pollStatus() {
       </div>`;
   }).join('') || '<p class="sub">No watchers running.</p>';
 
+  pollFindings();
   pollLogs();
+}
+
+// The Found panel is the alternative to Discord: the same hits, on the page.
+async function pollFindings() {
+  let data;
+  try {
+    data = await (await fetch('/api/findings?limit=60', { cache: 'no-store' })).json();
+  } catch { return; }
+
+  const box = $('#found');
+  if (!data.findings.length) {
+    box.innerHTML = '<p class="sub">Nobody yet. Anyone spotted in the game shows up here.</p>';
+    return;
+  }
+
+  const rows = data.findings.map((f) => {
+    const server = f.serverPlaying == null
+      ? '<span class="sub">hidden</span>'
+      : `${f.serverPlaying}/${f.serverMax ?? '?'}` +
+        (f.serverMax != null && f.serverPlaying >= f.serverMax ? ' <strong>FULL</strong>' : '');
+    const join = f.joinUrl
+      ? `<a href="${f.joinUrl}" target="_blank" rel="noopener">${f.gameId ? 'Join server' : 'Open game'}</a>`
+      : '<span class="sub">-</span>';
+    const probed = f.confidence === 'probed' ? ' <span class="sub">(followed)</span>' : '';
+    return `<tr>
+      <td>${fmtAgo(f.at)}</td>
+      <td>${f.emoji} <a href="${f.profileUrl}" target="_blank" rel="noopener">${f.displayName}</a>${probed}</td>
+      <td>${f.itemName || '?'}</td>
+      <td>${server}</td>
+      <td>${join}</td>
+    </tr>`;
+  }).join('');
+
+  box.innerHTML = `<table>
+    <tr><th>when</th><th>who</th><th>item</th><th>their server</th><th>join</th></tr>
+    ${rows}
+  </table>`;
 }
 
 async function pollLogs() {

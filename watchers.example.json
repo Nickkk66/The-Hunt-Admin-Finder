@@ -41,7 +41,8 @@
       },
       "probe": {
         "enabled": true
-      }
+      },
+      "emoji": "🥈"
     },
     {
       "name": "golden-wings",
@@ -59,7 +60,8 @@
       },
       "probe": {
         "enabled": true
-      }
+      },
+      "emoji": "🥇"
     }
   ]
 }

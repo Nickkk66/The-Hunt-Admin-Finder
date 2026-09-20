@@ -50,6 +50,7 @@ const DEFAULTS = {
   memberCacheHours: 6,
   presenceBatchSize: 50,
   renotifyMinutes: 30,
+  newAfterMinutes: 60,
   notifyOnUnknownGame: false,
   enabled: true,
 };
