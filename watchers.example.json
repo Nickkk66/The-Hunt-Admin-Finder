@@ -96,8 +96,8 @@
         {
           "userId": 1024848396,
           "username": "0kkAleks",
-          "enabled": true,
-          "note": "Stream listed LIVE as 'LAUNCHING ALL 3 Reignment with LOW QUEUE'. Id supplied by hand and not confirmed against the API - check the profile matches the account he links on stream before you trust an alert."
+          "enabled": false,
+          "note": "PARKED: id 1024848396 belongs to \"vzwzwv\" (display \"mqz\"), which is nothing like 0kkAleks, so the hand-supplied id looks wrong. Alerting on a stranger is worse than not alerting. Get the id from his own stream and re-enable."
         },
         {
           "userId": null,
@@ -107,34 +107,34 @@
         },
         {
           "userId": 1577246414,
-          "username": "Neatzo",
+          "username": "RealNatezo",
           "enabled": true,
-          "note": "Running 'Launching ALL 3 Crowns & Wings 24/7'. Id supplied by hand and not confirmed against the API - check the profile before you trust an alert."
+          "note": "Live name is RealNatezo (display \"Natezo\"), which matches the streamer the config meant. Renamed to the live name so the logs stop warning."
         },
         {
-          "userId": null,
+          "userId": 388550953,
           "username": "brandonisbulk",
-          "note": "Added by name, no id confirmed. The first run resolves it and logs the id - check that id is the person you meant before you act on an alert."
+          "note": "Id confirmed against the Roblox API."
         },
         {
-          "userId": null,
-          "username": "slalwartwarden",
-          "note": "Added by name, no id confirmed. The first run resolves it and logs the id - check that id is the person you meant before you act on an alert. Spelling looks off; if Roblox says no such account, that is why. Fix the name or put the numeric id in. Possibly \"stalwartwarden\"."
+          "userId": 7269913763,
+          "username": "StalwartWarden",
+          "note": "Config had the name misspelled; the real account is StalwartWarden, id confirmed against the Roblox API."
         },
         {
-          "userId": null,
+          "userId": 91512961,
           "username": "arcisbored",
-          "note": "Added by name, no id confirmed. The first run resolves it and logs the id - check that id is the person you meant before you act on an alert."
+          "note": "Id confirmed against the Roblox API."
         },
         {
-          "userId": null,
-          "username": "azaph3D",
-          "note": "Added by name, no id confirmed. The first run resolves it and logs the id - check that id is the person you meant before you act on an alert."
+          "userId": 467919920,
+          "username": "Azaph3D",
+          "note": "Id resolved and confirmed against the Roblox API."
         },
         {
-          "userId": null,
-          "username": "feetingvortex",
-          "note": "Added by name, no id confirmed. The first run resolves it and logs the id - check that id is the person you meant before you act on an alert. Spelling looks off; if Roblox says no such account, that is why. Fix the name or put the numeric id in. Possibly \"fleetingvortex\"."
+          "userId": 11124399442,
+          "username": "FleetingVortex",
+          "note": "Config had the name misspelled; the real account is FleetingVortex, id confirmed against the Roblox API."
         }
       ],
       "webhookUrl": "${DISCORD_WEBHOOK_OBSIDIAN_WINGS}",

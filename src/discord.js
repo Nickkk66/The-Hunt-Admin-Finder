@@ -49,13 +49,14 @@ export async function sendEmbeds(webhookUrl, embeds, { content, username, logger
 }
 
 export function buildHitEmbed(hit, { color = 0xc0c0c0, itemName = 'the item' } = {}) {
+  // No "Status" field: an alert only exists because they are in the game, so
+  // restating it spends a column on nothing.
   const fields = [
     {
       name: 'Profile',
       value: `[${hit.username}](https://www.roblox.com/users/${hit.userId}/profile)`,
       inline: true,
     },
-    { name: 'Status', value: hit.statusText, inline: true },
   ];
 
   // Long enough to say who they are, short enough not to bury the join link.
@@ -105,7 +106,8 @@ export function buildHitEmbed(hit, { color = 0xc0c0c0, itemName = 'the item' } =
   }
 
   return {
-    title: `${hit.displayName} (@${hit.username}) is playing`,
+    // Most people never set a display name, and "x (@x)" reads as a stutter.
+    title: `${hit.displayName && hit.displayName !== hit.username ? `${hit.displayName} (@${hit.username})` : hit.username} is playing`,
     description: `Go join them to earn **${itemName}**.`,
     color,
     fields,
@@ -115,6 +117,7 @@ export function buildHitEmbed(hit, { color = 0xc0c0c0, itemName = 'the item' } =
     footer: {
       text: hit.rankName ? `${hit.groupName ?? 'group'} - rank: ${hit.rankName}` : (hit.groupName ?? 'watch list'),
     },
-    timestamp: new Date().toISOString(),
+    // No timestamp: Discord already stamps every message with when it arrived,
+    // and an embed timestamp just prints "Today at ..." a second time.
   };
 }
