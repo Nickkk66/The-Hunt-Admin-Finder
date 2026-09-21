@@ -27,7 +27,7 @@
   "watchers": [
     {
       "name": "silver-wings",
-      "enabled": true,
+      "enabled": false,
       "itemName": "Silver Wings",
       "embedColor": 12632256,
       "groupId": 1200769,
@@ -45,13 +45,100 @@
     },
     {
       "name": "golden-wings",
-      "enabled": true,
+      "enabled": false,
       "itemName": "Golden Wings",
       "embedColor": 16766720,
       "groupId": 4199740,
       "rank": "Video Star",
       "webhookUrl": "${DISCORD_WEBHOOK_GOLDEN_WINGS}",
       "webhookUsername": "Golden Wings Watcher",
+      "target": {
+        "universeIds": [],
+        "placeIds": [],
+        "nameMatch": "The Hunt"
+      },
+      "probe": {
+        "enabled": true
+      }
+    },
+    {
+      "name": "obsidian-wings",
+      "enabled": true,
+      "itemName": "Obsidian Wings",
+      "embedColor": 4864886,
+      "sourceLabel": "Obsidian launcher list",
+      "users": [
+        {
+          "userId": 2672900117,
+          "username": "WaffleTrades",
+          "note": "Says he teamed up with Roblox developers and admins in one server and is launching all three wings."
+        },
+        {
+          "userId": 431900130,
+          "username": "WeirdBlox",
+          "note": "All three wings, Obsidian explicitly named as coming from a developer."
+        },
+        {
+          "userId": 65141229,
+          "username": "Zarcyn",
+          "note": "Names Obsidian, Gossamer and Aureate. Main account."
+        },
+        {
+          "userId": 2204301,
+          "username": "Fangwing",
+          "note": "Zarc's alternate account, used for the launcher streams."
+        },
+        {
+          "userId": 38805399,
+          "username": "javie12",
+          "note": "Stream tracker has him running a 24/7 'launching all 3 items' stream."
+        },
+        {
+          "userId": 1024848396,
+          "username": "0kkAleks",
+          "enabled": false,
+          "note": "PARKED: id 1024848396 belongs to \"vzwzwv\" (display \"mqz\"), which is nothing like 0kkAleks, so the hand-supplied id looks wrong. Alerting on a stranger is worse than not alerting. Get the id from his own stream and re-enable."
+        },
+        {
+          "userId": null,
+          "username": "Kirbyyum",
+          "enabled": false,
+          "note": "Advertises all 3 wings in a 24/7 Hunt stream, but no Roblox profile has been found for him. Parked until you get an id from the join instructions in his own stream - do not resolve this one by name, Roblox re-issues freed-up usernames."
+        },
+        {
+          "userId": 1577246414,
+          "username": "RealNatezo",
+          "enabled": true,
+          "note": "Live name is RealNatezo (display \"Natezo\"), which matches the streamer the config meant. Renamed to the live name so the logs stop warning."
+        },
+        {
+          "userId": 388550953,
+          "username": "brandonisbulk",
+          "note": "Id confirmed against the Roblox API."
+        },
+        {
+          "userId": 7269913763,
+          "username": "StalwartWarden",
+          "note": "Config had the name misspelled; the real account is StalwartWarden, id confirmed against the Roblox API."
+        },
+        {
+          "userId": 91512961,
+          "username": "arcisbored",
+          "note": "Id confirmed against the Roblox API."
+        },
+        {
+          "userId": 467919920,
+          "username": "Azaph3D",
+          "note": "Id resolved and confirmed against the Roblox API."
+        },
+        {
+          "userId": 11124399442,
+          "username": "FleetingVortex",
+          "note": "Config had the name misspelled; the real account is FleetingVortex, id confirmed against the Roblox API."
+        }
+      ],
+      "webhookUrl": "${DISCORD_WEBHOOK_OBSIDIAN_WINGS}",
+      "webhookUsername": "Obsidian Wings Watcher",
       "target": {
         "universeIds": [],
         "placeIds": [],

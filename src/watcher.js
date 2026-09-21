@@ -1,5 +1,7 @@
 import { createLogger } from './log.js';
 import { fetchRoleMembers, findRole, getGroup, getRoles } from './groups.js';
+import { resolveUserList } from './users.js';
+import { fetchHeadshots } from './thumbnails.js';
 import { PresenceType, fetchPresences, presenceName } from './presence.js';
 import { universeIdForPlace, getUniverseInfo } from './universes.js';
 import { matchesTarget, hitKey, shouldNotify, isLocationHidden } from './matching.js';
@@ -25,6 +27,7 @@ export class Watcher {
     this.members = [];
     this.groupName = null;
     this.roleName = null;
+    this.sourceLabel = null;
     this.gameNames = new Map();
     this.stopped = false;
     this.lastTick = null;
@@ -38,6 +41,8 @@ export class Watcher {
       itemName: this.config.itemName ?? null,
       group: this.groupName,
       rank: this.roleName,
+      source: this.sourceLabel ?? (this.roleName ? `${this.groupName} / ${this.roleName}` : this.groupName),
+      watchingList: Array.isArray(this.config.users),
       members: this.members.length,
       probing: Boolean(this.config.probe?.enabled),
       dryRun: Boolean(this.config.probe?.dryRun),
@@ -63,6 +68,58 @@ export class Watcher {
     this.state.follows ??= {};
     this.state.probe ??= {};
 
+    if (Array.isArray(this.config.users)) await this.#initWatchList({ forceRefresh });
+    else await this.#initGroupRank({ forceRefresh });
+
+    const outstanding = Object.keys(this.state.follows).length;
+    if (outstanding) this.log.info(`${outstanding} follow(s) left over from a previous run; they'll expire normally`);
+  }
+
+  /**
+   * A named list of people instead of a rank. Same downstream shape as the
+   * scraper, so the sweep, probe and notify paths don't care which one ran.
+   */
+  async #initWatchList({ forceRefresh = false } = {}) {
+    const entries = this.config.users.filter((u) => u.enabled !== false);
+    const parked = this.config.users.length - entries.length;
+
+    this.sourceLabel = this.config.sourceLabel ?? `${this.config.itemName ?? this.config.name} watch list`;
+    this.groupName = this.sourceLabel;
+    this.roleName = null;
+
+    // Ids never go stale, but usernames do, and the list itself changes when you
+    // edit the config. Re-resolving on either is cheap for a list this size.
+    const fingerprint = JSON.stringify(entries.map((u) => [u.userId ?? 0, u.username ?? '']).sort());
+    const ageMs = Date.now() - (this.state.membersFetchedAt ?? 0);
+    const stale = ageMs > this.config.memberCacheHours * HOUR;
+
+    if (forceRefresh || stale || this.state.listFingerprint !== fingerprint || !this.state.members?.length) {
+      this.members = await resolveUserList(this.client, entries, { logger: this.log });
+      this.state.members = this.members;
+      this.state.membersFetchedAt = Date.now();
+      this.state.listFingerprint = fingerprint;
+      delete this.state.roleSetId;
+      await writeState(this.config.name, this.state);
+    } else {
+      this.members = this.state.members;
+    }
+
+    if (!this.members.length) {
+      throw new Error(
+        `Watch list "${this.config.name}" resolved to nobody. Every entry is a username Roblox does not know; ` +
+          'put numeric userIds in the config.',
+      );
+    }
+
+    const skipped = entries.length - this.members.length;
+    this.log.info(
+      `${this.sourceLabel}: watching ${this.members.length} account(s)` +
+        `${skipped ? `, ${skipped} unresolved` : ''}${parked ? `, ${parked} parked (enabled: false)` : ''}`,
+    );
+    this.log.debug(this.members.map((m) => `${m.username} (${m.userId})`).join(', '));
+  }
+
+  async #initGroupRank({ forceRefresh = false } = {}) {
     const group = await getGroup(this.client, this.config.groupId);
     this.groupName = group?.name ?? `group ${this.config.groupId}`;
 
@@ -90,6 +147,7 @@ export class Watcher {
       this.state.members = this.members;
       this.state.membersFetchedAt = Date.now();
       this.state.roleSetId = role.id;
+      delete this.state.listFingerprint;
       await writeState(this.config.name, this.state);
       this.log.info(`cached ${this.members.length} members`);
     } else {
@@ -98,9 +156,6 @@ export class Watcher {
         `using cached member list (${this.members.length} members, ${Math.round(ageMs / MINUTE)} min old)`,
       );
     }
-
-    const outstanding = Object.keys(this.state.follows).length;
-    if (outstanding) this.log.info(`${outstanding} follow(s) left over from a previous run; they'll expire normally`);
   }
 
   /** One presence sweep, plus a probe pass over the people we can't see. */
@@ -194,6 +249,7 @@ export class Watcher {
       following: Boolean(this.state.follows[presence.userId]),
       groupName: this.groupName,
       rankName: this.roleName,
+      note: member.note ?? null,
     };
   }
 
@@ -502,13 +558,19 @@ export class Watcher {
       return [];
     }
 
+    // One call for the whole batch, and only for people we are about to post.
+    const avatars = await fetchHeadshots(this.client, fresh.map((h) => h.userId), { logger: this.log });
     const embeds = fresh.map((h) =>
-      buildHitEmbed(h, { color: this.config.embedColor ?? 0xc0c0c0, itemName: this.config.itemName ?? 'the item' }),
+      buildHitEmbed(
+        { ...h, avatarUrl: avatars.get(h.userId) ?? null },
+        { color: this.config.embedColor ?? 0xc0c0c0, itemName: this.config.itemName ?? 'the item' },
+      ),
     );
+    const who = this.roleName ? `${this.roleName}s` : 'people from the watch list';
     const content =
       fresh.length === 1
         ? `**${fresh[0].displayName}** is on right now. Go get ${this.config.itemName ?? 'the item'}.`
-        : `**${fresh.length}** ${this.roleName}s are in the game right now.`;
+        : `**${fresh.length}** ${who} are in the game right now.`;
 
     const ok = await sendEmbeds(this.config.webhookUrl, embeds, {
       content,
@@ -544,7 +606,7 @@ export class Watcher {
 
       const ageMs = Date.now() - (this.state.membersFetchedAt ?? 0);
       if (ageMs > this.config.memberCacheHours * HOUR) {
-        this.log.info('member cache expired, re-scraping the rank');
+        this.log.info(Array.isArray(this.config.users) ? 're-resolving the watch list' : 'member cache expired, re-scraping the rank');
         await this.init().catch((err) => this.log.error(`member refresh failed: ${err.message}`));
       }
 

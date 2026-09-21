@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Hunt Watcher</title>
-<meta name="description" content="Config builder and local dashboard for the Roblox group-rank Hunt watcher.">
+<meta name="description" content="Config builder and local dashboard for the Roblox Hunt watcher: group ranks and named watch lists.">
 <style>
   :root {
     color-scheme: light dark;
@@ -78,11 +78,12 @@
   .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
   label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; }
   label .hint { display: block; font-weight: 400; color: var(--ink-soft); font-size: 12px; margin-top: 2px; }
-  input[type=text], input[type=password], input[type=number], textarea {
+  input[type=text], input[type=password], input[type=number], textarea, select {
     width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line);
     background: var(--panel-2); color: var(--ink); font: inherit;
   }
-  input:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  textarea { min-height: 120px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+  input:focus, textarea:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
   input[type=color] { width: 46px; height: 34px; padding: 2px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel-2); }
   .check { display: flex; align-items: center; gap: 8px; font-size: 14px; margin: 8px 0; }
   .check input { width: 16px; height: 16px; }
@@ -221,7 +222,7 @@
   <div class="spread">
     <div>
       <h2>Watchers</h2>
-      <p class="sub">One per group rank you want to sit on.</p>
+      <p class="sub">One per group rank, or per named list of people, you want to sit on.</p>
     </div>
     <button type="button" id="add-watcher">Add watcher</button>
   </div>
@@ -282,16 +283,63 @@ let statusTimer = null;
 
 const DEFAULT_WATCHERS = [
   {
-    name: 'silver-wings', itemName: 'Silver Wings', groupId: 1200769, rank: 'Team Member',
+    name: 'silver-wings', itemName: 'Silver Wings', enabled: false, groupId: 1200769, rank: 'Team Member',
     color: '#c0c0c0', webhookUrl: '', universeIds: '', placeIds: '', nameMatch: 'The Hunt',
     probe: { enabled: true, dryRun: true, maxPerCycle: 10, maxActiveFollows: 60, keepFollowMinutes: 60, targetGraceMinutes: 20, opaqueBackoffHours: 12 },
   },
   {
-    name: 'golden-wings', itemName: 'Golden Wings', groupId: 4199740, rank: 'Video Star',
+    name: 'golden-wings', itemName: 'Golden Wings', enabled: false, groupId: 4199740, rank: 'Video Star',
     color: '#ffd700', webhookUrl: '', universeIds: '', placeIds: '', nameMatch: 'The Hunt',
     probe: { enabled: true, dryRun: true, maxPerCycle: 10, maxActiveFollows: 60, keepFollowMinutes: 60, targetGraceMinutes: 20, opaqueBackoffHours: 12 },
   },
+  {
+    name: 'obsidian-wings', itemName: 'Obsidian Wings', enabled: true, mode: 'users', groupId: '', rank: '',
+    color: '#4a3b76', webhookUrl: '', universeIds: '', placeIds: '', nameMatch: 'The Hunt',
+    users: [
+      '2672900117 | WaffleTrades - teamed up with Roblox developers and admins in one server, launching all three wings',
+      '431900130 | WeirdBlox - all three wings, Obsidian explicitly named as coming from a developer',
+      '65141229 | Zarcyn - names Obsidian, Gossamer and Aureate. Main account',
+      "2204301 | Fangwing - Zarc's alternate account, used for the launcher streams",
+      '38805399 | javie12 - 24/7 "launching all 3 items" stream',
+      '1024848396 | 0kkAleks - "LAUNCHING ALL 3 Reignment with LOW QUEUE". Id entered by hand, not API-confirmed',
+      '1577246414 | Neatzo - "Launching ALL 3 Crowns & Wings 24/7". Id entered by hand, not API-confirmed',
+      '# Kirbyyum | all 3 wings in a 24/7 Hunt stream, but no Roblox profile found for him yet',
+      'brandonisbulk | added by name, no id confirmed',
+      'slalwartwarden | added by name, no id confirmed - spelling may be stalwartwarden',
+      'arcisbored | added by name, no id confirmed',
+      'azaph3D | added by name, no id confirmed',
+      'feetingvortex | added by name, no id confirmed - spelling may be fleetingvortex',
+    ].join('\n'),
+    probe: { enabled: true, dryRun: true, maxPerCycle: 8, maxActiveFollows: 30, keepFollowMinutes: 60, targetGraceMinutes: 20, opaqueBackoffHours: 12 },
+  },
 ];
+
+/**
+ * One person per line: a userId, a username or a profile link, then an optional
+ * `| note`. A leading # parks that line without deleting it, which is what you
+ * want for somebody whose Roblox account you haven't confirmed yet.
+ */
+function parseUserLines(text) {
+  return String(text || '')
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const enabled = !line.startsWith('#');
+      const body = enabled ? line : line.replace(/^#+\s*/, '');
+      const pipe = body.indexOf('|');
+      const token = (pipe === -1 ? body : body.slice(0, pipe)).trim();
+      const note = pipe === -1 ? '' : body.slice(pipe + 1).trim();
+      const entry = { enabled };
+      const link = token.match(/roblox\.com\/users\/(\d+)/i);
+      if (link) entry.userId = Number(link[1]);
+      else if (/^\d+$/.test(token)) entry.userId = Number(token);
+      else entry.username = token.replace(/^@/, '');
+      if (note) entry.note = note;
+      return entry;
+    })
+    .filter((e) => e.userId || e.username);
+}
 
 // --- form -------------------------------------------------------------------
 
@@ -301,7 +349,10 @@ function watcherCard(w) {
   el.innerHTML = `
     <div class="spread">
       <h3 class="wname">watcher</h3>
-      <button type="button" class="danger remove">Remove</button>
+      <div class="row">
+        <div class="check" style="margin:0"><input type="checkbox" data-f="enabled"><label>Enabled</label></div>
+        <button type="button" class="danger remove">Remove</button>
+      </div>
     </div>
     <div class="grid">
       <div>
@@ -313,12 +364,28 @@ function watcherCard(w) {
         <input type="text" data-f="itemName">
       </div>
       <div>
+        <label>Watch</label>
+        <select data-f="mode">
+          <option value="group">everyone in a group rank</option>
+          <option value="users">a named list of people</option>
+        </select>
+      </div>
+      <div class="mode-group">
         <label>Group id</label>
         <input type="number" data-f="groupId">
       </div>
-      <div>
+      <div class="mode-group">
         <label>Rank name <span class="hint">or a rank number</span></label>
         <input type="text" data-f="rank" spellcheck="false">
+      </div>
+      <div class="mode-users" style="grid-column: 1 / -1">
+        <label>Watch list <span class="hint">one per line: userId, username or profile link, then an optional | note</span></label>
+        <textarea data-f="users" rows="8" spellcheck="false" style="width:100%" placeholder="2204301 | Fangwing - alt account&#10;# SomeName | park a line with a leading #"></textarea>
+        <p class="sub" style="margin-top:4px">
+          Ids are what actually gets watched. A username is looked up at startup, and Roblox lets a
+          freed-up name be re-registered, so a name you took off a stream can point at a stranger.
+          Run <span class="mono">npm run resolve "&lt;name&gt;"</span> and check the profile first.
+        </p>
       </div>
       <div style="grid-column: 1 / -1">
         <label>Discord webhook url</label>
@@ -369,11 +436,19 @@ function watcherCard(w) {
     if (input.type === 'checkbox') input.checked = Boolean(value);
     else input.value = value ?? '';
   }
+  $('[data-f="mode"]', el).value = w.mode === 'users' ? 'users' : 'group';
+
+  const applyMode = () => {
+    const users = $('[data-f="mode"]', el).value === 'users';
+    for (const node of $$('.mode-group', el)) node.style.display = users ? 'none' : '';
+    for (const node of $$('.mode-users', el)) node.style.display = users ? '' : 'none';
+  };
+  applyMode();
 
   $('.remove', el).addEventListener('click', () => { el.remove(); render(); });
   $('.test', el).addEventListener('click', () => testWebhook(el));
   el.addEventListener('input', render);
-  el.addEventListener('change', render);
+  el.addEventListener('change', () => { applyMode(); render(); });
   return el;
 }
 
@@ -410,11 +485,13 @@ function buildConfig() {
     },
     watchers: watchers.map((w) => ({
       name: w.name,
-      enabled: true,
+      enabled: Boolean(w.enabled),
       itemName: w.itemName,
       embedColor: parseInt(String(w.color || '#c0c0c0').slice(1), 16),
-      groupId: Number(w.groupId) || 0,
-      rank: w.rank,
+      // A watcher is one or the other; sending both makes the config invalid.
+      ...(w.mode === 'users'
+        ? { users: parseUserLines(w.users) }
+        : { groupId: Number(w.groupId) || 0, rank: w.rank }),
       webhookUrl: '${' + envKey(w.name) + '}',
       webhookUsername: (w.itemName || w.name) + ' Watcher',
       target: {
@@ -457,11 +534,22 @@ function problems() {
     if (!w.name) out.push('a watcher has no name');
     else if (seen.has(w.name)) out.push(`two watchers are both called "${w.name}"`);
     seen.add(w.name);
-    if (!Number(w.groupId)) out.push(`${label}: group id missing`);
-    if (!String(w.rank || '').trim()) out.push(`${label}: rank missing`);
+    if (w.mode === 'users') {
+      const list = parseUserLines(w.users);
+      const live = list.filter((u) => u.enabled);
+      if (!list.length) out.push(`${label}: the watch list is empty`);
+      else if (!live.length) out.push(`${label}: every line in the watch list is parked with a #`);
+      const names = live.filter((u) => !u.userId).length;
+      if (names) out.push(`${label}: ${names} entr${names === 1 ? 'y is' : 'ies are'} a username, not an id - resolve them so you don't watch the wrong account`);
+    } else {
+      if (!Number(w.groupId)) out.push(`${label}: group id missing`);
+      if (!String(w.rank || '').trim()) out.push(`${label}: rank missing`);
+    }
     if (!idList(w.universeIds).length && !idList(w.placeIds).length && !String(w.nameMatch || '').trim()) {
       out.push(`${label}: needs a universe id, a place id or a name fallback`);
     }
+    // Parked: it won't run, so a missing webhook isn't a problem worth flagging yet.
+    if (!w.enabled) continue;
     if (!String(w.webhookUrl || '').trim()) out.push(`${label}: no webhook url, so nothing will reach you`);
     else if (!/^https:\/\/(discord|discordapp)\.com\/api\/webhooks\//.test(w.webhookUrl.trim())) {
       out.push(`${label}: that doesn't look like a Discord webhook url`);
@@ -501,7 +589,9 @@ function render() {
     ? '<strong>Before this will work:</strong><ul>' + issues.map((p) => `<li>${p}</li>`).join('') + '</ul>'
     : '';
   for (const el of $$('#watchers .watcher')) {
-    $('.wname', el).textContent = $('[data-f="name"]', el).value || 'watcher';
+    const on = $('[data-f="enabled"]', el).checked;
+    el.style.opacity = on ? '' : '0.55';
+    $('.wname', el).textContent = ($('[data-f="name"]', el).value || 'watcher') + (on ? '' : ' (parked)');
   }
   if (LIVE) $('#start').disabled = issues.length > 0 || $('#stop').disabled === false;
 }
@@ -592,7 +682,7 @@ async function pollStatus() {
       <div class="watcher">
         <div class="spread">
           <h3>${w.name}</h3>
-          <span class="sub">${w.group ?? '?'} / ${w.rank ?? '?'} &middot; ${w.members} members${w.probing ? (w.dryRun ? ' &middot; probing (dry run)' : ' &middot; probing') : ''}</span>
+          <span class="sub">${w.source ?? `${w.group ?? '?'} / ${w.rank ?? '?'}`} &middot; ${w.members} ${w.watchingList ? 'accounts' : 'members'}${w.probing ? (w.dryRun ? ' &middot; probing (dry run)' : ' &middot; probing') : ''}</span>
         </div>
         <p class="sub" style="margin-top:6px">
           ${t ? `last sweep ${fmtAgo(t.at)}: ${t.checked} checked, ${t.inGame} in a game, ${t.hidden} hidden, ${t.matched} matched, ${t.notified} pinged (${(t.durationMs / 1000).toFixed(0)}s)` : 'no sweep yet'}
@@ -633,7 +723,7 @@ async function pollLogs() {
 
 function addWatcher(data) {
   $('#watchers').appendChild(watcherCard(data ?? {
-    name: 'watcher-' + ($$('#watchers .watcher').length + 1), itemName: '', groupId: '', rank: '',
+    name: 'watcher-' + ($$('#watchers .watcher').length + 1), itemName: '', enabled: true, mode: 'group', groupId: '', rank: '', users: '',
     color: '#c0c0c0', webhookUrl: '', universeIds: '', placeIds: '', nameMatch: 'The Hunt',
     probe: { enabled: false, dryRun: true, maxPerCycle: 10, maxActiveFollows: 60, keepFollowMinutes: 60, targetGraceMinutes: 20, opaqueBackoffHours: 12 },
   }));
@@ -679,7 +769,7 @@ $('#clear-all').addEventListener('click', () => {
 
 $('#start').addEventListener('click', async () => {
   $('#start').disabled = true;
-  $('#run-status').textContent = 'starting, first run scrapes the whole rank...';
+  $('#run-status').textContent = 'starting, the first run scrapes each rank and resolves each watch list...';
   const res = await fetch('/api/start', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },

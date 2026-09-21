@@ -4,10 +4,13 @@
  *
  *   npm run resolve "https://www.roblox.com/share/g/1200769"
  *   npm run resolve "https://www.roblox.com/share?code=...&type=ExperienceDetails"
+ *   npm run resolve "Fangwing"
+ *   npm run resolve "https://www.roblox.com/users/2204301/profile"
  */
 import { loadEnv } from './config.js';
 import { RobloxClient } from './robloxClient.js';
 import { getRoles, getGroup } from './groups.js';
+import { fetchUsersByIds, fetchUsersByNames } from './users.js';
 import { parseShareInput, resolveShareCode, extractIdsFromShareResponse } from './sharelinks.js';
 import { universeIdForPlace, getUniverseInfo } from './universes.js';
 import { log } from './log.js';
@@ -41,10 +44,46 @@ async function describeExperience(client, { placeId, universeId }) {
   );
 }
 
+async function describeUsers(client, { userIds = [], usernames = [] }) {
+  const found = [];
+  if (usernames.length) {
+    const hits = await fetchUsersByNames(client, usernames);
+    found.push(...hits);
+    for (const name of usernames) {
+      if (!hits.some((u) => u.name.toLowerCase() === name.toLowerCase())) {
+        console.log(`\nNo Roblox account is called "${name}".`);
+      }
+    }
+  }
+  if (userIds.length) found.push(...(await fetchUsersByIds(client, userIds)));
+
+  if (!found.length) {
+    console.log('\nNothing resolved. Double-check the spelling, or grab the id from the profile url.');
+    return;
+  }
+
+  console.log('');
+  for (const u of found) {
+    console.log(`  ${u.name} (display "${u.displayName ?? u.name}")  userId ${u.id}`);
+    console.log(`    https://www.roblox.com/users/${u.id}/profile`);
+  }
+  console.log('\nwatchers.json -> "users": [');
+  console.log(
+    found
+      .map((u) => `  { "userId": ${u.id}, "username": ${JSON.stringify(u.name)}, "note": "" }`)
+      .join(',\n'),
+  );
+  console.log(']');
+  console.log(
+    '\nNames are not unique - Roblox lets a freed-up name be taken again. If you got this ' +
+      'name off a stream, check the profile link above is the person you meant before you trust the alert.',
+  );
+}
+
 async function main() {
   const input = process.argv[2];
   if (!input) {
-    console.log('usage: npm run resolve "<roblox link, place id or group id>"');
+    console.log('usage: npm run resolve "<roblox link, place id, group id or username>"');
     process.exitCode = 1;
     return;
   }
@@ -60,6 +99,14 @@ async function main() {
 
     case 'place':
       await describeExperience(client, { placeId: parsed.placeId });
+      break;
+
+    case 'user':
+      await describeUsers(client, { userIds: [parsed.userId] });
+      break;
+
+    case 'username':
+      await describeUsers(client, { usernames: [parsed.username] });
       break;
 
     case 'share': {
