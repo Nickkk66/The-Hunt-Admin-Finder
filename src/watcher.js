@@ -5,11 +5,13 @@ import { fetchHeadshots } from './thumbnails.js';
 import { PresenceType, fetchPresences, presenceName } from './presence.js';
 import { universeIdForPlace, getUniverseInfo } from './universes.js';
 import { matchesTarget, hitKey, shouldNotify, isLocationHidden } from './matching.js';
-import { buildHitEmbed, sendEmbeds } from './discord.js';
+import { buildHitEmbed, sendEmbeds, mentionFor, itemEmoji } from './discord.js';
+import { recordFindings } from './findings.js';
 import { readState, writeState } from './store.js';
 import { FollowManager } from './follows.js';
 import { ChallengeRequiredError } from './robloxClient.js';
 import { sleep } from './queue.js';
+import { playerCounts, describeCounts, recordSightings } from './servers.js';
 
 const MINUTE = 60_000;
 const HOUR = 3_600_000;
@@ -67,6 +69,7 @@ export class Watcher {
     this.state.notified ??= {};
     this.state.follows ??= {};
     this.state.probe ??= {};
+    this.state.seen ??= {};
 
     if (Array.isArray(this.config.users)) await this.#initWatchList({ forceRefresh });
     else await this.#initGroupRank({ forceRefresh });
@@ -224,6 +227,9 @@ export class Watcher {
           placeId: h.placeId,
           gameId: h.gameId,
           gameName: h.gameName,
+          serverPlaying: h.serverPlaying ?? null,
+          serverMax: h.serverMax ?? null,
+          gamePlaying: h.gamePlaying ?? null,
         })),
         ...this.recentHits,
       ].slice(0, 25);
@@ -547,6 +553,15 @@ export class Watcher {
   async #notify(hits) {
     const now = Date.now();
     this.state.notified ??= {};
+    this.state.seen ??= {};
+
+    // "New" means we haven't seen them in the target for a while: first sighting,
+    // or back after leaving. Server hops and cooldown repeats don't count.
+    const newAfterMs = (this.config.newAfterMinutes ?? 60) * MINUTE;
+    const newcomers = new Set(
+      hits.filter((h) => now - (this.state.seen[h.userId] ?? 0) > newAfterMs).map((h) => h.userId),
+    );
+    for (const h of hits) this.state.seen[h.userId] = now;
 
     const fresh = hits.filter((h) =>
       shouldNotify(hitKey(h), this.state.notified, { renotifyMinutes: this.config.renotifyMinutes, now }),
@@ -558,29 +573,53 @@ export class Watcher {
       return [];
     }
 
+    for (const h of fresh) {
+      Object.assign(h, await playerCounts(this.client, h, { getUniverseInfo, log: this.log }));
+      const counts = describeCounts(h);
+      if (counts) this.log.info(`${h.username} in ${h.gameName ?? 'the game'}: ${counts}`);
+    }
+
     // One call for the whole batch, and only for people we are about to post.
     const avatars = await fetchHeadshots(this.client, fresh.map((h) => h.userId), { logger: this.log });
+    for (const h of fresh) h.avatarUrl = avatars.get(h.userId) ?? null;
+
+    const emoji = itemEmoji(this.config.itemName, this.config.emoji);
+    const itemName = this.config.itemName ?? 'the item';
+
+    // Log the find before Discord gets involved. The dashboard is a destination
+    // in its own right, so a missing webhook must not lose the sighting.
+    recordFindings(this.config.name, fresh, { emoji, itemName });
+
     const embeds = fresh.map((h) =>
-      buildHitEmbed(
-        { ...h, avatarUrl: avatars.get(h.userId) ?? null },
-        { color: this.config.embedColor ?? 0xc0c0c0, itemName: this.config.itemName ?? 'the item' },
-      ),
+      buildHitEmbed(h, { color: this.config.embedColor ?? 0xc0c0c0, itemName, emoji }),
     );
+    const newOnes = fresh.filter((h) => newcomers.has(h.userId));
+    const mention = newOnes.length ? mentionFor(this.config.ping ?? process.env.DISCORD_PING) : '';
+    // One sentence, same shape every time: they are in the game or they are not.
+    // A watch list has no rank, so it needs a plural of its own.
     const who = this.roleName ? `${this.roleName}s` : 'people from the watch list';
-    const content =
+    const where = this.config.target?.nameMatch || 'the game';
+    let content =
       fresh.length === 1
-        ? `**${fresh[0].displayName}** is on right now. Go get ${this.config.itemName ?? 'the item'}.`
-        : `**${fresh.length}** ${who} are in the game right now.`;
+        ? `${emoji} **${fresh[0].displayName}** is in ${where} right now.`
+        : `${emoji} **${fresh.length}** ${who} are in ${where} right now.`;
+    if (mention) content = `${mention} ${content}`;
 
     const ok = await sendEmbeds(this.config.webhookUrl, embeds, {
       content,
-      username: this.config.webhookUsername ?? 'The Hunt Watcher',
+      ping: Boolean(mention),
+      username: `${emoji} ${this.config.webhookUsername ?? 'The Hunt Watcher'}`.trim(),
       logger: this.log,
     });
 
-    if (ok) {
+    // No webhook configured is a choice, not a failure: still dedupe and record.
+    if (ok || !this.config.webhookUrl) {
       for (const h of fresh) this.state.notified[hitKey(h)] = now;
-      this.log.info(`notified about ${fresh.length} player(s): ${fresh.map((h) => h.username).join(', ')}`);
+      const how = this.config.webhookUrl ? 'notified' : 'found (no webhook, dashboard only)';
+      this.log.info(`${how} ${fresh.length} player(s): ${fresh.map((h) => h.username).join(', ')}`);
+      await recordSightings(this.config.name, fresh).catch((err) =>
+        this.log.warn(`could not write sightings file: ${err.message}`),
+      );
     }
 
     await this.#pruneNotified(now);
@@ -591,6 +630,9 @@ export class Watcher {
     const ttl = Math.max(this.config.renotifyMinutes * MINUTE * 4, 6 * HOUR);
     for (const [key, at] of Object.entries(this.state.notified ?? {})) {
       if (now - at > ttl) delete this.state.notified[key];
+    }
+    for (const [id, at] of Object.entries(this.state.seen ?? {})) {
+      if (now - at > 24 * HOUR) delete this.state.seen[id];
     }
     await writeState(this.config.name, this.state);
   }
